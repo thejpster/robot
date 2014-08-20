@@ -4,6 +4,9 @@ from binascii import hexlify
 import struct
 import sys
 import time
+import serial
+import threading
+import Queue
 
 def bidict(d):
     new_d = dict()
@@ -72,7 +75,17 @@ EVENTS = {
 }
 EVENTS = bidict(EVENTS)
 
-def hex_print(data):
+def get_speed():
+    speed = current_axes[AXIS_MAP["Right-Y"]]
+    speed = speed * 255
+    speed = speed / 32768
+    if speed > 255:
+        speed = 255
+    elif speed < -255:
+        speed = -255
+    return speed
+
+def process_event(data):
     (timeval, value, event, number) = struct.unpack("<IhBB", data)
     if event in (EVENTS["Stick"], EVENTS["InitStick"]):
         if number in AXIS_MAP:
@@ -86,24 +99,55 @@ def hex_print(data):
             if DEBUG:
                 print("Time: %u, Value: %u, Type: %s, Number %u" % (timeval, value, EVENTS[event], number))
             current_buttons[number] = value
+
+def print_status():
     print("==================")
     for axis in current_axes:
         print("%s = %s" % (AXIS_MAP[axis], current_axes[axis]))
     for axis in current_buttons:
         print("%s = %s" % (BUTTON_MAP[axis], current_buttons[axis]))
 
+def serialthread(f, q):
+    while True:
+        speed = q.get()
+        msg = "%d\n" % speed
+        print("msg=%r" % msg)
+        if f:
+            f.write(msg.encode("ascii"))
+
 def main(*args):
     global DEBUG
+    s = None
     if args[0] == "--debug":
         DEBUG=True
         args = args[1:]
+    elif args[0].startswith("--serial="):
+        OUTPUT=True
+        dev = args[0].split("=")[1]
+        s = serial.Serial(dev, baudrate=9600)
+        args = args[1:]
     dev = args[0]
     print("Device:", dev)
+    last = 0
+    data = ""
+    q = Queue.Queue(maxsize=2)
+    thread = threading.Thread(target=serialthread, args=(s, q))
+    thread.daemon = True
+    thread.start()
     with open(dev, "rb") as f:
         while True:
-            data = f.read(8)
-            hex_print(data)
-            #time.sleep(1)
+            data = data + f.read(8)
+            print("read %u" % len(data))
+            if len(data) >= 8:
+                process_event(data[:8])
+                data = data[8:]
+                speed = get_speed()
+                if speed != last:
+                    try:
+                        q.put(speed)
+                        last = speed
+                    except Queue.Full:
+                        print("Q full!")
 
 if __name__ == '__main__':
     main(*sys.argv[1:])
