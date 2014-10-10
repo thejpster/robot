@@ -33,6 +33,8 @@ env = Environment(
 files = [
 	"robot.c",
 	"dualshock.c",
+        "lcd/src/lcd.c",
+        env.Glob("font/src/*.c"),
 ]
 
 env.Program('pwrs', files)
