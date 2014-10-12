@@ -34,7 +34,10 @@
 #include <time.h>
 #include <getopt.h>
 
-#include "dualshock.h"
+#include <dualshock/dualshock.h>
+#include <lcd/lcd.h>
+#include <font/font.h>
+#include <menu/menu_pwrs.h>
 
 /**************************************************
 * Defines
@@ -71,12 +74,14 @@ static struct option long_options[] =
     {"verbose", no_argument,       &verbose_flag, 1},
     {"help",    no_argument,       0, 'h'},
     {"jsdev",   required_argument, 0, 'j'},
+    {"lcd",     required_argument, 0, 'l'},
     { 0 }
 };
 
-static const char *short_options = "vhj:";
+static const char *short_options = "vhj:l:";
 
 static char *sz_jsdev = "/dev/input/js0";
+static char *sz_lcddev = "/dev/spidev0.0";
 
 /**************************************************
 * Public Functions
@@ -105,11 +110,17 @@ int main(int argc, char **argv)
 
     if (retval == 0)
     {
+        retval = lcd_init(sz_lcddev);
+    }
+
+    if (retval == 0)
+    {
         struct timeval delay_master = {
             .tv_sec = 0,
             .tv_usec = (1000 * 1000) / LOOPS_PER_SECOND
         };
         struct timeval loop_delay = delay_master;
+        menu_pwrs_init();
         while(1)
         {
             dualshock_read_or_timeout(&loop_delay);
@@ -192,6 +203,10 @@ static int process_arguments(int argc, char** argv)
             sz_jsdev = optarg;
             break;
 
+        case 'l':
+            sz_lcddev = optarg;
+            break;
+
         case 'h':
             print_help();
             break;
@@ -218,11 +233,13 @@ static void print_help(void)
     fprintf(stderr, "\n");
     fprintf(stderr, "Options are:\n");
     fprintf(stderr, "\n");
-    fprintf(stderr, "    --jsdev / -j <device> - Specifies the /dev/event/foo device for the joystick\n");
+    fprintf(stderr, "    --jsdev / -j <device>  - Specifies the /dev/event/foo device for the joystick\n");
     fprintf(stderr, "\n");
-    fprintf(stderr, "    --verbose / -v        - Enables more logging\n");
+    fprintf(stderr, "    --lcddev / -l <device> - Specifies the /dev/spidev0.0 device for the LCD\n");
     fprintf(stderr, "\n");
-    fprintf(stderr, "    --help / -h           - Shows this help\n");
+    fprintf(stderr, "    --verbose / -v         - Enables more logging\n");
+    fprintf(stderr, "\n");
+    fprintf(stderr, "    --help / -h            - Shows this help\n");
 }
 
 /**************************************************

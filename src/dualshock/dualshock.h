@@ -24,8 +24,8 @@
 *
 *****************************************************/
 
-#ifndef TEMPLATE_H
-#define TEMPLATE_H
+#ifndef DUALSHOCK_H
+#define DUALSHOCK_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -104,7 +104,7 @@ bool dualshock_read_button(enum dualshock_button_t axis);
 }
 #endif
 
-#endif /* ndef TEMPLATE_H */
+#endif /* ndef DUALSHOCK_H */
 
 /**************************************************
 * End of file

@@ -2,7 +2,7 @@
 *
 * Stellaris Launchpad Example Project
 *
-* Copyright (c) 2013-2014 theJPster (www.thejpster.org.uk)
+* Copyright (c) 2014 theJPster (www.thejpster.org.uk)
 *
 * Permission is hereby granted, free of charge, to any person obtaining a
 * copy of this software and associated documentation files (the "Software"),
@@ -22,65 +22,92 @@
 * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 * DEALINGS IN THE SOFTWARE.
 *
-* Code for displaying text/numbers on the LCD.
-* 
 *****************************************************/
-
-#ifndef FONT_H
-#define FONT_H
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /**************************************************
 * Includes
 ***************************************************/
 
-#include <lcd/lcd.h>
+#include <util/util.h>
+
+#include "../menu.h"
 
 /**************************************************
-* Public Defines
+* Defines
 ***************************************************/
 
 /* None */
 
 /**************************************************
-* Public Data Types
+* Data Types
 **************************************************/
 
 /* None */
+
+/**************************************************
+* Function Prototypes
+**************************************************/
+
+static bool test_action(
+    const struct menu_t *p_menu,
+    const struct menu_item_t *p_menu_item
+);
 
 /**************************************************
 * Public Data
 **************************************************/
 
+const struct menu_item_t top_menu_items[] =
+{
+    { "Option A", MENU_ITEM_TYPE_ACTION, NULL, test_action },
+    { "Option B", MENU_ITEM_TYPE_ACTION, NULL, test_action },
+    { "Option C", MENU_ITEM_TYPE_ACTION, NULL, test_action }
+};
+
+const struct menu_t top_menu =
+{
+    "Lexgo Bonus",
+    NUMELTS(top_menu_items),
+    NULL,
+    top_menu_items
+};
+
+/**************************************************
+* Private Data
+**************************************************/
+
 /* None */
 
 /**************************************************
-* Public Function Prototypes
+* Public Functions
 ***************************************************/
 
-void font_draw_text_small(
-    lcd_row_t x, lcd_col_t y,
-    const char* p_message,
-    lcd_colour_t fg,
-    lcd_colour_t bg,
-    bool monospace
-);
-
-size_t font_draw_text_small_len(
-    const char* p_message,
-    bool monospace
-);
-
-void font_glyph_width_small(char x);
-
-#ifdef __cplusplus
+void menu_pwrs_init(void)
+{
+    menu_init(&top_menu);
+    menu_redraw(true);
 }
-#endif
 
-#endif /* ndef FONT_H */
+/**************************************************
+* Private Functions
+***************************************************/
+
+static bool test_action(
+    const struct menu_t *p_menu,
+    const struct menu_item_t *p_menu_item
+)
+{
+    if (p_menu_item->p_label)
+    {
+        PRINTF("Selected menu item %s/%s\n", p_menu->p_title, p_menu_item->p_label);
+    }
+    else
+    {
+        PRINTF("Selected menu item %s/Back\n", p_menu->p_title);
+    }
+    /* Always redraw menu */
+    return true;
+}
 
 /**************************************************
 * End of file

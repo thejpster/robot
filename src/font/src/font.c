@@ -1,6 +1,6 @@
 /*****************************************************
 *
-* Stellaris Launchpad Example Project
+* Taken from the Stellaris Launchpad Example Project
 *
 * Copyright (c) 2012-2014 theJPster (www.thejpster.org.uk)
 *
@@ -28,9 +28,10 @@
 * Includes
 ***************************************************/
 
-#include "util/util.h"
+#include <stdio.h>
 
-#include "drivers/lcd/lcd.h"
+#include <util/util.h>
+#include <lcd/lcd.h>
 
 /**************************************************
 * Defines
@@ -58,58 +59,19 @@
 * Public Data
 **************************************************/
 
-extern const unsigned char SevenSeg_XXXL_Num[];
-extern const unsigned char BigFont[];
-extern const unsigned char hallfetica_normal[];
+extern const unsigned char Sinclair_S[];
 
-#define DEFAULT_FONT hallfetica_normal
+#define DEFAULT_FONT Sinclair_S
 
 /**************************************************
 * Private Data
 **************************************************/
 
-#define FONT_FACE_LARGE_WIDTH 64
-#define FONT_FACE_LARGE_HEIGHT 120
+/* None */
 
 /**************************************************
 * Public Functions
 ***************************************************/
-
-void font_draw_number_large(
-    lcd_row_t x, lcd_col_t y,
-    uint16_t number,
-    unsigned int pad_width,
-    lcd_colour_t fg,
-    lcd_colour_t bg
-)
-{
-    char buffer[6];
-    char *p;
-    int len;
-    unsigned int glyph_width = SevenSeg_XXXL_Num[GLYPH_WIDTH_INDEX];
-    unsigned int glyph_height = SevenSeg_XXXL_Num[GLYPH_HEIGHT_INDEX];
-    unsigned int glyph_size = 1 + ((glyph_width/8) * glyph_height);
-    len = sprintf(buffer, "%u", number);
-    while(pad_width > len)
-    {
-        lcd_paint_fill_rectangle(bg, x, x+glyph_width-1, y, y+glyph_height-1);
-        x+=glyph_width;
-        pad_width--;
-    }
-    p = buffer;
-    while (len)
-    {
-        unsigned int glyph_num = *p - SevenSeg_XXXL_Num[GLYPH_OFFSET_INDEX];
-        if (glyph_num < SevenSeg_XXXL_Num[GLYPH_NUM_GLYPHS_INDEX])
-        {        
-            const uint8_t *p_glyph = &SevenSeg_XXXL_Num[GLYPH_START_INDEX + (glyph_size * glyph_num)];
-            lcd_paint_mono_rectangle(fg, bg, x, x+glyph_width-1, y, y+glyph_height-1, &p_glyph[1]);
-        }
-        p++;
-        len--;
-        x+=glyph_width;
-    }
-}
 
 void font_draw_text_small(
     lcd_row_t x, lcd_col_t y,
@@ -245,7 +207,7 @@ void font_glyph_width_small(char x)
             max_padding = padding;
         }
     }
-    printf("%u, ", max_width + 1 - max_padding);
+    printf("%zu, ", max_width + 1 - max_padding);
     for(unsigned int y = 0; y < glyph_height; y++)
     {
         uint16_t row = p_glyph[1 + (y * glyph_width_bytes)];
@@ -255,7 +217,7 @@ void font_glyph_width_small(char x)
         printf("0x%02x, 0x%02x, ", (row >> 8) & 0xFF, row & 0xFF);
     }
     printf(" // '%c'\n", x);
-    printf("Width %u, padding %u\n", max_width + 1, max_padding);
+    printf("Width %zu, padding %zu\n", max_width + 1, max_padding);
 }
 
 /**************************************************

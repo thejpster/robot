@@ -35,7 +35,7 @@
 #include <assert.h>
 #include <inttypes.h>
 
-#include "dualshock.h"
+#include "../dualshock.h"
 
 /**************************************************
 * Defines
@@ -146,7 +146,6 @@ int dualshock_init(const char *sz_jsdev)
     else
     {
         perror("Can't open device");
-        retval = 2;
     }
     return retval;
 }
@@ -155,8 +154,15 @@ void dualshock_read_or_timeout(struct timeval *p_delay)
 {
     fd_set rfds;
     FD_ZERO(&rfds);
-    FD_SET(fd, &rfds);
-    select(fd + 1, &rfds, NULL, NULL, p_delay);
+    if (fd > 0)
+    {
+        FD_SET(fd, &rfds);
+        select(fd + 1, &rfds, NULL, NULL, p_delay);
+    }
+    else
+    {
+        select(0, NULL, NULL, NULL, p_delay);
+    }
     if (FD_ISSET(fd, &rfds))
     {
         struct event_data_t data;

@@ -29,13 +29,15 @@
 *
 *****************************************************/
 
+#ifdef LCD_SIM
+
 /**************************************************
 * Includes
 ***************************************************/
 
 #include <stdio.h>
-#include "util/util.h"
-#include "../lcd.h"
+#include <inttypes.h>
+#include <lcd/lcd.h>
 
 /**************************************************
 * Defines
@@ -59,13 +61,13 @@ static void pixel_fn(int x, int y, uint32_t col);
 * Public Data
 **************************************************/
 
-extern FILE* f;
+/* None */
 
 /**************************************************
 * Private Data
 **************************************************/
 
-/* None */
+static FILE* f;
 
 /**************************************************
 * Public Functions
@@ -77,15 +79,21 @@ extern FILE* f;
  * See header file for pinout.
  *
  */
-int lcd_init(void)
+int lcd_init(const char* p_filename)
 {
-    fprintf(f, "reset\n");
+    printf("LCD device: %s\r\n", p_filename);
 
-    PRINTF("Wait...\n");
+    f = fopen(p_filename, "w");
 
-    delay_ms(1500);
+    if (!f)
+    {
+        perror("Can't open LCD device");
+        return -1;
+    }
 
     PRINTF("LCD init...\n");
+
+    fprintf(f, "reset\n");
 
     lcd_paint_clear_screen();
 
@@ -111,52 +119,9 @@ int lcd_init(void)
     return 0;
 }
 
-/* Make all pins inputs */
 void lcd_deinit(void)
 {
-
-}
-
-/**
- * @return data bus width for pixel data
- */
-enum lcd_pixel_width_t lcd_get_pixel_width(void)
-{
-    return LCD_PIXEL_WIDTH_8;
-}
-
-/**
- * @param width the new desired bus width (for pixel data only, not commands).
- */
-void lcd_set_pixel_width(enum lcd_pixel_width_t width)
-{
     /* Nothing */
-}
-
-/**
- * @param p_mode Pointer to LCD mode structure which will be filled in
- */
-void lcd_get_mode(struct lcd_mode_t *p_mode)
-{
-    memset(p_mode, 0, sizeof(*p_mode));
-}
-
-/**
- * @param p_ver Pointer to LCD version structure which will be filled in
- */
-void lcd_get_version(struct lcd_ver_t *p_ver)
-{
-    memset(p_ver, 0, sizeof(*p_ver));
-}
-
-void lcd_get_horiz_period(struct lcd_period_t *p_period)
-{
-    memset(p_period, 0, sizeof(*p_period));
-}
-
-void lcd_get_vert_period(struct lcd_period_t *p_period)
-{
-    memset(p_period, 0, sizeof(*p_period));
 }
 
 void lcd_on(void)
@@ -165,36 +130,6 @@ void lcd_on(void)
 }
 
 void lcd_off(void)
-{
-    /* Nothing */
-}
-
-void lcd_get_dbc_conf(struct lcd_dbc_conf_t *p_dbc)
-{
-    memset(p_dbc, 0, sizeof(*p_dbc));
-}
-
-void lcd_set_dbc_conf(const struct lcd_dbc_conf_t *p_dbc)
-{
-    /* Nothing */
-}
-
-/**
- * Gets frame buffer / display mapping (aka 'address mode').
- * @param p_dbc Pointer to data structure which will be filled in.
- * with details of mapping.
- */
-void lcd_get_address_mode(struct lcd_address_mode_t *p_mode)
-{
-    memset(p_mode, 0, sizeof(*p_mode));
-}
-
-/**
- * Sets frame buffer / display mapping (aka 'address mode').
- * @param p_dbc Pointer to data structure which will be read and passed to
- * LCD.
- */
-void lcd_set_address_mode(const struct lcd_address_mode_t *p_mode)
 {
     /* Nothing */
 }
@@ -221,7 +156,7 @@ void lcd_paint_fill_rectangle(
     lcd_row_t y2
 )
 {
-    fprintf(f, "box %d %d %d %d 0x%06lx\n", x1, x2, y1, y2, bg);
+    fprintf(f, "box %d %d %d %d 0x%06"PRIu32"\n", x1, x2, y1, y2, bg);
     fflush(f);
 }
 
@@ -247,7 +182,7 @@ void lcd_paint_mono_rectangle(
     const uint8_t *p_pixels
 )
 {
-    fprintf(f, "bitmap %d %d %d %d 0x%06lx 0x%06lx ", x1, x2, y1, y2, fg, bg);
+    fprintf(f, "bitmap %d %d %d %d 0x%06"PRIu32" 0x%06"PRIu32" ", x1, x2, y1, y2, fg, bg);
     size_t size = (1 + x2 - x1) * (1 + y2 - y1);
     size_t bytes = (size + 7) / 8;
     for(size_t i = 0; i < bytes; i++)
@@ -307,10 +242,12 @@ void lcd_paint_colour_rectangle(
 
 static void pixel_fn(int x, int y, uint32_t colour)
 {
-    fprintf(f, "plot %d %d 0x%06lx\n", x, y, colour);
+    fprintf(f, "plot %d %d 0x%06"PRIu32"\n", x, y, colour);
     fflush(f);
 }
 
+
+#endif
 
 /**************************************************
 * End of file

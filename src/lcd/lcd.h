@@ -29,8 +29,8 @@
 *
 *****************************************************/
 
-#ifndef LCD_H_
-#define LCD_H_
+#ifndef LCD_H
+#define LCD_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -70,8 +70,8 @@ extern "C" {
 #define LCD_GREY        MAKE_COLOUR(0x80, 0x80, 0x80)
 
 /* LCD sizes */
-#define LCD_WIDTH 480
-#define LCD_HEIGHT 272
+#define LCD_WIDTH 84
+#define LCD_HEIGHT 48
 
 #define LCD_FIRST_COLUMN 0
 #define LCD_FIRST_ROW 0
@@ -87,122 +87,11 @@ extern "C" {
 * Public Data Types
 **************************************************/
 
-enum lcd_tft_type_t
-{
-    LCD_TFT_TYPE_TFTA = 0x00,
-    LCD_TFT_TYPE_TFTB = 0x01,
-    LCD_TFT_TYPE_SERIAL_RGB = 0x02,
-    LCD_TFT_TYPE_SERIAL_RGB_DUMMY = 0x03
-};
-
-enum lcd_tft_rgb_sequence_t
-{
-    LCD_TFT_RGB = 0x00,
-    LCD_TFT_RBG = 0x01,
-    LCD_TFT_GRB = 0x02,
-    LCD_TFT_GBR = 0x03,
-    LCD_TFT_BRG = 0x04,
-    LCD_TFT_BGR = 0x05
-};
-
-enum lcd_pixel_width_t
-{
-    LCD_PIXEL_WIDTH_8 = 0,
-    LCD_PIXEL_WIDTH_12 = 1,
-    LCD_PIXEL_WIDTH_16_888 = 2,
-    LCD_PIXEL_WIDTH_16_565 = 3,
-    LCD_PIXEL_WIDTH_18 = 4,
-    LCD_PIXEL_WIDTH_9 = 6
-};
-
 typedef unsigned int lcd_row_t;
 typedef unsigned int lcd_col_t;
 
 /* Stores NRGB where N is an RLE number of pixels (optional) */
 typedef uint32_t lcd_colour_t;
-
-struct lcd_mode_t
-{
-    bool colour_enhancement;
-    bool frc; /* true = FRC, false = dither */
-    bool lshift_rising_edge;
-    bool horiz_active_high;
-    bool vert_active_high;
-    enum lcd_tft_type_t tft_type;
-    lcd_col_t horiz_pixels;
-    lcd_row_t vert_pixels;
-    enum lcd_tft_rgb_sequence_t even_sequence;
-    enum lcd_tft_rgb_sequence_t odd_sequence;
-};
-
-struct lcd_ver_t
-{
-    uint16_t supplier_id;
-    uint8_t product_id;
-    uint8_t revision;
-    uint8_t check_value; /* Should be FF */
-};
-
-struct lcd_period_t
-{
-    uint16_t total;
-    uint16_t display_start;
-    uint8_t sync_pulse_width;
-    uint16_t sync_pulse_start;
-};
-
-enum lcd_dbc_mode_t
-{
-    LCD_DBC_MODE_AGGRESSIVE = 3,
-    LCD_DBC_MODE_NORMAL = 2,
-    LCD_DBC_MODE_CONSERVATIVE = 1,
-    LCD_DBC_MODE_OFF = 0
-};
-
-struct lcd_dbc_conf_t
-{
-    bool dbc_manual_brightness;
-    bool transition_effect;
-    enum lcd_dbc_mode_t mode;
-    bool master_enable;
-};
-
-/* All fields power on reset to false */
-struct lcd_address_mode_t
-{
-    /* Controls order pixels written to framebuffer. false = top to bottom,
-       true = bottom to top */
-    bool page_address_order;
-
-    /* Controls order pixels written to framebuffer. false = left to right,
-       true = right to left */
-    bool column_address_order;
-
-    /* Controls order pixels written to framebuffer. If true, swaps both X
-       and Y */
-    bool page_column_address_order;
-
-    /* This bit controls the display panel’s horizontal line refresh order.
-       The image shown on the display panel is unaffected, regardless of the
-       bit setting. */
-    bool line_address_order;
-
-    /* This bit controls the RGB data order transferred from the SSD1961’s
-       frame buffer to the display panel. */
-    bool bgr_order;
-
-    /* This bit controls the display panel’s vertical line data latch order.
-    */
-    bool display_data_latch_data;
-
-    /* This bit flips the image shown on the display panel left to right. No
-       change is made to the frame buffer. */
-    bool flip_horizontal;
-
-    /* This bit flips the image shown on the display panel top to bottom. No
-       change is made to the frame buffer. */
-    bool flip_vertical;
-};
 
 /**************************************************
 * Public Data
@@ -216,63 +105,11 @@ struct lcd_address_mode_t
 
 /**
  * Will set up the GPIO for driving the LCD.
- *
- * The pinout is:
- *
- * /CS  = D2 (J3.05)
- * /RS  = D3 (J3.06)
- * /RD  = E1 (J3.07)
- * /WR  = E2 (J3.08)
- * /RST = E3 (J3.09)
- *
- * DATA00 = D0 (J3.03)
- * DATA01 = D1 (J3.04)
- * DATA02 = A2 (J2.10)
- * DATA03 = A3 (J2.09)
- * DATA04 = A4 (J2.08)
- * DATA05 = A5 (J1.08)
- * DATA06 = A6 (J1.09)
- * DATA07 = A7 (J1.10)
- *
- * In the future, I might add 16-bit mode.
- *
  */
-extern int lcd_init(void);
+extern int lcd_init(const char* p_filename);
 
 /* Make all pins inputs */
 extern void lcd_deinit(void);
-
-/**
- * @return width data bus width for pixel data
- */
-extern enum lcd_pixel_width_t lcd_get_pixel_width(void);
-
-/**
- * @param width the new desired bus width (for pixel data only, not commands).
- */
-extern void lcd_set_pixel_width(enum lcd_pixel_width_t width);
-
-/**
- * @param p_mode Pointer to LCD mode structure which will be filled in
- */
-extern void lcd_get_mode(struct lcd_mode_t *p_mode);
-
-/**
- * @param p_ver Pointer to LCD version structure which will be filled in
- */
-extern void lcd_get_version(struct lcd_ver_t *p_ver);
-
-/**
- * @param p_period Pointer to LCD period structure which will be filled in
- * with details of horizontal frame sync.
- */
-extern void lcd_get_horiz_period(struct lcd_period_t *p_period);
-
-/**
- * @param p_period Pointer to LCD period structure which will be filled in
- * with details of vertical frame sync.
- */
-extern void lcd_get_vert_period(struct lcd_period_t *p_period);
 
 /**
  * Enables LCD display.
@@ -283,34 +120,6 @@ extern void lcd_on(void);
  * Disables LCD display.
  */
 extern void lcd_off(void);
-
-/**
- * Gets Dynamic Brightness Control settings.
- * @param p_dbc Pointer to DBC structure which will be filled in.
- * with details of DBC.
- */
-extern void lcd_get_dbc_conf(struct lcd_dbc_conf_t *p_dbc);
-
-/**
- * Sets Dynamic Brightness Control settings.
- * @param p_dbc Pointer to DBC structure which will be read and passed
- * to LCD.
- */
-extern void lcd_set_dbc_conf(const struct lcd_dbc_conf_t *p_dbc);
-
-/**
- * Gets frame buffer / display mapping (aka 'address mode').
- * @param p_dbc Pointer to data structure which will be filled in.
- * with details of mapping.
- */
-extern void lcd_get_address_mode(struct lcd_address_mode_t *p_mode);
-
-/**
- * Sets frame buffer / display mapping (aka 'address mode').
- * @param p_dbc Pointer to data structure which will be read and passed to
- * LCD.
- */
-extern void lcd_set_address_mode(const struct lcd_address_mode_t *p_mode);
 
 /**
  * Sets the LCD backlight brightness.
@@ -395,7 +204,7 @@ extern void lcd_read_color_rectangle(
 }
 #endif
 
-#endif /* ndef LCD_H_ */
+#endif /* ndef LCD_H */
 
 /**************************************************
 * End of file

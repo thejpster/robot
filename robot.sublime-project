@@ -1,9 +1,18 @@
 {
-	"folders":
-	[
-		{
-			"follow_symlinks": true,
-			"path": "."
-		}
-	]
+    "folders":
+    [
+        {
+            "follow_symlinks": true,
+            "path": "."
+        }
+    ],
+    "build_systems":
+    [
+        {
+            "working_dir": "${project_path:${folder}}",
+            "file_regex": "^[ ]*(...*?):([0-9]*):[0-9]+: ",
+            "name": "Robot SCons Build",
+            "cmd": ["scons"]
+        }
+    ]
 }

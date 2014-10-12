@@ -19,22 +19,27 @@ along with PWRS.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 env = Environment(
-	CPPFLAGS = [
-		"-g",
-		"-O1",
-		"-std=c99",
-		"-Wall",
-		],
-	CPPDEFINES = {
-		"_GNU_SOURCE" : 1,
-	}
-	)
+    CPPFLAGS = [
+        "-g",
+        "-O1",
+        "-std=c99",
+        "-Wall",
+        ],
+    CPPPATH = [
+        "."
+    ],
+    CPPDEFINES = {
+        "_GNU_SOURCE" : 1,
+    }
+    )
 
-files = [
-	"robot.c",
-	"dualshock.c",
-        "lcd/src/lcd.c",
-        env.Glob("font/src/*.c"),
-]
+if ARGUMENTS.get('LCD_SIM') == '1':
+    env.Append(CPPDEFINES={'LCD_SIM': 1})
+
+if ARGUMENTS.get('VERBOSE') != '1':
+    env['CCCOMSTR'] = 'Compiling $TARGET'
+    env['LINKCOMSTR'] = 'Linking $TARGET'
+
+files = env.Glob('*/src/*.c') + [ 'robot.c' ]
 
 env.Program('pwrs', files)

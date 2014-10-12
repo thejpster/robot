@@ -2,7 +2,7 @@
 *
 * Stellaris Launchpad Example Project
 *
-* Copyright (c) 2013-2014 theJPster (www.thejpster.org.uk)
+* Copyright (c) 2014 theJPster (www.thejpster.org.uk)
 *
 * Permission is hereby granted, free of charge, to any person obtaining a
 * copy of this software and associated documentation files (the "Software"),
@@ -22,12 +22,12 @@
 * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 * DEALINGS IN THE SOFTWARE.
 *
-* Code for displaying text/numbers on the LCD.
-* 
+* Draws a nice menu on the LCD.
+*
 *****************************************************/
 
-#ifndef FONT_H
-#define FONT_H
+#ifndef MENU_H
+#define MENU_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -37,7 +37,7 @@ extern "C" {
 * Includes
 ***************************************************/
 
-#include <lcd/lcd.h>
+#include "util/util.h"
 
 /**************************************************
 * Public Defines
@@ -49,7 +49,43 @@ extern "C" {
 * Public Data Types
 **************************************************/
 
-/* None */
+enum menu_keypress_t {
+    MENU_KEYPRESS_ENTER,
+    MENU_KEYPRESS_UP,
+    MENU_KEYPRESS_DOWN
+};
+
+enum menu_item_type_t {
+    MENU_ITEM_TYPE_SUBMENU,
+    MENU_ITEM_TYPE_ACTION,
+};
+
+/* Forward declare, to allow mutual reference */
+struct menu_item_t;
+struct menu_t;
+
+/*
+ * @return true if menu should be redraw, false otherwise
+ */
+typedef bool (*menu_action_t)(
+    const struct menu_t *p_menu,
+    const struct menu_item_t *p_menu_item
+);
+
+struct menu_item_t {
+    const char *p_label;
+    enum menu_item_type_t type;
+    const struct menu_t *p_submenu;
+    menu_action_t p_fn;
+};
+
+struct menu_t {
+    const char* p_title;
+    size_t num_items;
+    /* Function called when menu closed. */
+    menu_action_t p_back;
+    const struct menu_item_t* p_menu_items;
+};
 
 /**************************************************
 * Public Data
@@ -61,26 +97,31 @@ extern "C" {
 * Public Function Prototypes
 ***************************************************/
 
-void font_draw_text_small(
-    lcd_row_t x, lcd_col_t y,
-    const char* p_message,
-    lcd_colour_t fg,
-    lcd_colour_t bg,
-    bool monospace
-);
+/*
+ * Display the given menu structure, starting with the top item highlighted.
+ */
+void menu_init(const struct menu_t *p_menu);
 
-size_t font_draw_text_small_len(
-    const char* p_message,
-    bool monospace
-);
+/*
+ * Feed a keypress into the menu system.
+ */
+void menu_keypress(enum menu_keypress_t keypress);
 
-void font_glyph_width_small(char x);
+/*
+ * Redraw the menu in its current state
+ */
+void menu_redraw(bool blank_screen);
+
+/*
+ * Reset the menu's state - back to the top item in the top menu.
+ */
+void menu_reset(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* ndef FONT_H */
+#endif /* ndef MENU_H */
 
 /**************************************************
 * End of file

@@ -2,7 +2,7 @@
 *
 * Stellaris Launchpad Example Project
 *
-* Copyright (c) 2013-2014 theJPster (www.thejpster.org.uk)
+* Copyright (c) 2014 theJPster (www.thejpster.org.uk)
 *
 * Permission is hereby granted, free of charge, to any person obtaining a
 * copy of this software and associated documentation files (the "Software"),
@@ -22,12 +22,12 @@
 * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 * DEALINGS IN THE SOFTWARE.
 *
-* Code for displaying text/numbers on the LCD.
-* 
+* Draws a nice menu on the LCD.
+*
 *****************************************************/
 
-#ifndef FONT_H
-#define FONT_H
+#ifndef MENU_PWRS_H
+#define MENU_PWRS_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -37,7 +37,8 @@ extern "C" {
 * Includes
 ***************************************************/
 
-#include <lcd/lcd.h>
+#include <util/util.h>
+#include <menu/menu.h>
 
 /**************************************************
 * Public Defines
@@ -61,26 +62,16 @@ extern "C" {
 * Public Function Prototypes
 ***************************************************/
 
-void font_draw_text_small(
-    lcd_row_t x, lcd_col_t y,
-    const char* p_message,
-    lcd_colour_t fg,
-    lcd_colour_t bg,
-    bool monospace
-);
-
-size_t font_draw_text_small_len(
-    const char* p_message,
-    bool monospace
-);
-
-void font_glyph_width_small(char x);
+/*
+ * Display the PWRS menu, starting with the top item highlighted.
+ */
+void menu_pwrs_init(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* ndef FONT_H */
+#endif /* ndef MENU_PWRS_H */
 
 /**************************************************
 * End of file
