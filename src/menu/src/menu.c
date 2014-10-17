@@ -46,6 +46,9 @@
 #define LINE_POS 9
 #define ROW_HEIGHT 9
 
+#define TEXT_BACKGROUND LCD_BLACK
+#define TEXT_COLOUR     LCD_WHITE
+
 /**************************************************
 * Data Types
 **************************************************/
@@ -143,8 +146,8 @@ void menu_redraw(bool blank_screen)
     {
         lcd_paint_clear_screen();
     }
-    font_draw_text_small(MENU_INSET, y, p_menu->p_title, LCD_BLUE, LCD_BLACK, false);
-    lcd_paint_fill_rectangle(LCD_BLUE, LCD_FIRST_COLUMN, LCD_LAST_COLUMN, LINE_POS, LINE_POS);
+    font_draw_text_small(MENU_INSET, y, p_menu->p_title, TEXT_COLOUR, TEXT_BACKGROUND, false);
+    lcd_paint_fill_rectangle(TEXT_COLOUR, LCD_FIRST_COLUMN, LCD_LAST_COLUMN, LINE_POS, LINE_POS);
     y += ROW_HEIGHT;
     for(size_t draw_item = 0; draw_item < p_menu->num_items; draw_item++)
     {
@@ -152,23 +155,24 @@ void menu_redraw(bool blank_screen)
         PRINTF("%c %s\n", (draw_item == current_item) ? '*' : ' ', p_menu_item->p_label);
         if (draw_item == current_item)
         {
-            font_draw_text_small(MENU_INSET, y, p_menu_item->p_label, LCD_BLACK, LCD_BLUE, false);
+            font_draw_text_small(MENU_INSET, y, p_menu_item->p_label, TEXT_BACKGROUND, TEXT_COLOUR, false);
         }
         else
         {
-            font_draw_text_small(MENU_INSET, y, p_menu_item->p_label, LCD_BLUE, LCD_BLACK, false);
+            font_draw_text_small(MENU_INSET, y, p_menu_item->p_label, TEXT_COLOUR, TEXT_BACKGROUND, false);
         }
         y += ROW_HEIGHT;
     }
     PRINTF("%c Back\n", (p_menu->num_items == current_item) ? '*' : ' ');
     if (p_menu->num_items == current_item)
     {
-        font_draw_text_small(MENU_INSET, y, "Back", LCD_BLACK, LCD_BLUE, false);
+        font_draw_text_small(MENU_INSET, y, "Back", TEXT_BACKGROUND, TEXT_COLOUR, false);
     }
     else
     {
-        font_draw_text_small(MENU_INSET, y, "Back", LCD_BLUE, LCD_BLACK, false);
+        font_draw_text_small(MENU_INSET, y, "Back", TEXT_COLOUR, TEXT_BACKGROUND, false);
     }
+    lcd_flush();
 }
 
 /*

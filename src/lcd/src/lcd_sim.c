@@ -134,6 +134,14 @@ void lcd_off(void)
     /* Nothing */
 }
 
+/**
+ * Flushes the framebuffer to the LCD.
+ */
+void lcd_flush(void)
+{
+    /* Nothing */
+}
+
 void lcd_set_backlight(uint8_t brightness)
 {
     /* Nothing */
@@ -156,7 +164,7 @@ void lcd_paint_fill_rectangle(
     lcd_row_t y2
 )
 {
-    fprintf(f, "box %d %d %d %d 0x%06"PRIu32"\n", x1, x2, y1, y2, bg);
+    fprintf(f, "box %d %d %d %d 0x%06"PRIx32"\n", x1, x2, y1, y2, bg);
     fflush(f);
 }
 
@@ -182,7 +190,7 @@ void lcd_paint_mono_rectangle(
     const uint8_t *p_pixels
 )
 {
-    fprintf(f, "bitmap %d %d %d %d 0x%06"PRIu32" 0x%06"PRIu32" ", x1, x2, y1, y2, fg, bg);
+    fprintf(f, "bitmap %d %d %d %d 0x%06"PRIx32" 0x%06"PRIx32" ", x1, x2, y1, y2, fg, bg);
     size_t size = (1 + x2 - x1) * (1 + y2 - y1);
     size_t bytes = (size + 7) / 8;
     for(size_t i = 0; i < bytes; i++)
@@ -242,7 +250,7 @@ void lcd_paint_colour_rectangle(
 
 static void pixel_fn(int x, int y, uint32_t colour)
 {
-    fprintf(f, "plot %d %d 0x%06"PRIu32"\n", x, y, colour);
+    fprintf(f, "plot %d %d 0x%06"PRIx32"\n", x, y, colour);
     fflush(f);
 }
 

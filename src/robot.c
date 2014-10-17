@@ -35,8 +35,9 @@
 #include <getopt.h>
 
 #include <dualshock/dualshock.h>
-#include <lcd/lcd.h>
 #include <font/font.h>
+#include <gpio/gpio.h>
+#include <lcd/lcd.h>
 #include <menu/menu_pwrs.h>
 
 /**************************************************
@@ -98,6 +99,8 @@ int main(int argc, char **argv)
     int retval;
 
     printf("Welcome to PWRS\r\n");
+
+    gpio_init();
 
     retval = process_arguments(argc, argv);
 

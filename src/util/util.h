@@ -49,6 +49,9 @@ extern "C" {
 
 #define NUMELTS(x) (sizeof (x) / sizeof ((x[0])))
 
+#define MAX(x,y) ((x) > (y) ? (x) : (y))
+#define MIN(x,y) ((x) < (y) ? (x) : (y))
+
 /**************************************************
 * Public Data Types
 **************************************************/

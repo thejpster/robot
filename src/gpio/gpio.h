@@ -44,9 +44,10 @@ extern "C" {
 ***************************************************/
 
 /* Macros to pack a port and pin into one value */
-#define GPIO_MAKE_IO_PIN(port, pin)  ( (gpio_io_pin_t) ( ((port) << 8U) | (1U<<(pin)) ) )
-#define GPIO_GET_PORT(io_pin)  ((io_pin) >> 8U)
-#define GPIO_GET_PIN(io_pin)  ((io_pin) & 0xFFU)
+/* Raspberry Pi only has one 'port' */
+#define GPIO_MAKE_IO_PIN(port, pin)  ( (gpio_io_pin_t) (1U<<(pin)) )
+#define GPIO_GET_PORT(io_pin)  (0)
+#define GPIO_GET_PIN(io_pin)  (io_pin)
 
 /**************************************************
 * Public Data Types
@@ -84,26 +85,10 @@ typedef void (*gpio_interrupt_handler_t)(gpio_io_pin_t pin, void* p_context, uin
 * Public Function Prototypes
 ***************************************************/
 
-/**
- * Enable the LEDs, buttons and UART0 on the launchpad board.
- */
-extern void gpio_enable_peripherals(void);
-
-/**
- * Enable the two buttons on the launchpad board.
- */
-extern void gpio_enable_buttons(void);
-
-/**
- * Enable the RGB LED on the launchpad board.
- */
-extern void gpio_enable_leds(void);
-
 /*
- * A useful means of conveying errors when you don't have a 
- * working UART.
+ * Initialise GPIO subsystem
  */
-extern void gpio_flash_error(gpio_io_pin_t pin_a, gpio_io_pin_t pin_b, unsigned int delay_ms);
+extern void gpio_init(void);
 
 /*
  * Set pin as output (low or high)
@@ -121,11 +106,6 @@ extern void gpio_make_input(gpio_io_pin_t pin);
 extern void gpio_make_input_pullup(gpio_io_pin_t pin);
 
 /*
- * Remove any peripheral connected to this pin.
- */
-void gpio_force_gpio(gpio_io_pin_t pin);
-
-/*
  * If a pin is already an output, set the level
  */
 extern void gpio_set_output(gpio_io_pin_t pin, int level);
@@ -133,17 +113,17 @@ extern void gpio_set_output(gpio_io_pin_t pin, int level);
 /*
  * Set multiple output pins on a port.
  */
-extern void gpio_set_outputs(gpio_port_t port, uint8_t outputs, uint8_t mask);
+extern void gpio_set_outputs(gpio_port_t port, uint32_t outputs, uint32_t mask);
 
 /*
  * If a pin is already an input, read the level. 0 for low, 1 for high.
  */
-extern uint8_t gpio_read_input(gpio_io_pin_t pin);
+extern int gpio_read_input(gpio_io_pin_t pin);
 
 /*
  * If a many pins on a port are already inputs, read the levels. 0 for low, 1 for high.
  */
-extern uint8_t gpio_read_inputs(gpio_port_t port, uint8_t mask);
+extern uint32_t gpio_read_inputs(gpio_port_t port, uint32_t mask);
 
 #ifdef __cplusplus
 }

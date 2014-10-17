@@ -122,6 +122,11 @@ extern void lcd_on(void);
 extern void lcd_off(void);
 
 /**
+ * Flushes the framebuffer to the LCD.
+ */
+extern void lcd_flush(void);
+
+/**
  * Sets the LCD backlight brightness.
  * @param brightness 0xFF is maximum brightness, 0x00 is minimum.
  */
