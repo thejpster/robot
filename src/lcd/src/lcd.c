@@ -56,21 +56,44 @@
 /* The uppermost stripe is 0, the lowermost is 5. */
 /* The leftmost pixel is 0, the rightmost is 83 */
 
+/* The following init code is from http://playground.arduino.cc/Code/PCD8544 */
+
+/*
+  LcdWrite(LCD_C, 0x21 );  // LCD Extended Commands.
+  LcdWrite(LCD_C, 0xB1 );  // Set LCD Vop (Contrast). 
+  LcdWrite(LCD_C, 0x04 );  // Set Temp coefficent. //0x04
+  LcdWrite(LCD_C, 0x14 );  // LCD bias mode 1:48. //0x13
+  LcdWrite(LCD_C, 0x0C );  // LCD in normal mode.
+  LcdWrite(LCD_C, 0x20 );
+  LcdWrite(LCD_C, 0x0C );
+*/
+
 #define NUM_STRIPES                 (LCD_HEIGHT/6)
-#define PCD8544_POWERDOWN           0x04
-#define PCD8544_ENTRYMODE           0x02
-#define PCD8544_EXTENDEDINSTRUCTION 0x01
+
+/* These commands work in either mode */
+#define PCD8544_NOP                 0x00
+#define PCD8544_FUNCTIONSET         0x20
+
+/* Options for FUNCTIONSET command */
+#define PCD8544_POWERDOWN           0x04 /* Power-down screen */
+#define PCD8544_VERTICALMODE        0x02 /* Use vertical addressing */
+#define PCD8544_EXTENDEDINSTRUCTION 0x01 /* Enable extended mode */
+
+/* These are normal mode commands */
+#define PCD8544_SETYADDR            0x40 /* Add Y = 0..5 */
+#define PCD8544_SETXADDR            0x80 /* Add X = 0..83 */
+#define PCD8544_DISPLAYCONTROL      0x08 /* Add one of the following... */
+
+/* Options for DISPLAYCONTROL */
 #define PCD8544_DISPLAYBLANK        0x0
 #define PCD8544_DISPLAYNORMAL       0x4
 #define PCD8544_DISPLAYALLON        0x1
 #define PCD8544_DISPLAYINVERTED     0x5
-#define PCD8544_FUNCTIONSET         0x20
-#define PCD8544_DISPLAYCONTROL      0x08
-#define PCD8544_SETYADDR            0x40 /* Y = 0..5 */
-#define PCD8544_SETXADDR            0x80 /* X = 0..83 */
-#define PCD8544_SETTEMP             0x04
-#define PCD8544_SETBIAS             0x10
-#define PCD8544_SETVOP              0x80
+
+/* These are extended mode commands */
+#define PCD8544_SETTEMP             0x04 /* Add 0..3 to set temp co-efficient */
+#define PCD8544_SETBIAS             0x10 /* Add 0..7 to set bias */
+#define PCD8544_SETVOP              0x80 /* Add 0..0x7F to set contrast */
 
 #define COMMAND true
 #define DATA false

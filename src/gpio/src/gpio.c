@@ -82,9 +82,10 @@ void gpio_init(void)
 void gpio_make_output(gpio_io_pin_t pin, int level)
 {
 #ifdef USE_WIRINGPI
+    digitalWrite(GPIO_GET_PIN(pin), level);
     pinMode(GPIO_GET_PIN(pin), OUTPUT);
 #else
-    printf("gpio_make_output(pin=%u, level=%d)", pin, level);
+    printf("gpio_make_output(pin=%u, level=%d)\n", pin, level);
 #endif
 }
 
@@ -96,7 +97,7 @@ void gpio_make_input(gpio_io_pin_t pin)
 #ifdef USE_WIRINGPI
     pinMode(GPIO_GET_PIN(pin), INPUT);
 #else
-    printf("gpio_make_input(pin=%u)", pin);
+    printf("gpio_make_input(pin=%u)\n", pin);
 #endif
 }
 
@@ -109,7 +110,7 @@ void gpio_make_input_pullup(gpio_io_pin_t pin)
     pinMode(GPIO_GET_PIN(pin), INPUT);
     pullUpDnControl(GPIO_GET_PIN(pin), PUD_UP);
 #else
-    printf("gpio_make_input_pullup(pin=%u)", pin);
+    printf("gpio_make_input_pullup(pin=%u)\n", pin);
 #endif
 }
 
@@ -121,7 +122,7 @@ void gpio_set_output(gpio_io_pin_t pin, int level)
 #ifdef USE_WIRINGPI
     digitalWrite(GPIO_GET_PIN(pin), level ? 1 : 0);
 #else
-    printf("gpio_set_outputs(pin=%u, level=%u)", pin, level);
+    printf("gpio_set_outputs(pin=%u, level=%u)\n", pin, level);
 #endif
 }
 
@@ -143,7 +144,7 @@ void gpio_set_outputs(gpio_port_t port, uint32_t outputs, uint32_t mask)
         pin++;
     }
 #else
-    printf("gpio_set_outputs(port=%u, outputs=0x%02x, mask=0x%02x)", port, outputs, mask);
+    printf("gpio_set_outputs(port=%u, outputs=0x%02x, mask=0x%02x)\n", port, outputs, mask);
 #endif
 }
 
