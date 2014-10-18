@@ -127,12 +127,6 @@ extern void lcd_off(void);
 extern void lcd_flush(void);
 
 /**
- * Sets the LCD backlight brightness.
- * @param brightness 0xFF is maximum brightness, 0x00 is minimum.
- */
-extern void lcd_set_backlight(uint8_t brightness);
-
-/**
  * Paints a solid rectangle to the LCD in the given colour.
  *
  * @param bg the RGB colour for all the pixels
