@@ -160,9 +160,9 @@ int main(int argc, char **argv)
                 printf("DUALSHOCK_BUTTON_R2 = %s\n", dualshock_read_button(DUALSHOCK_BUTTON_R2) ? "pressed" : "not-pressed");
                 #endif
                 char msg[14];
-                sprintf(msg, "l2=0x%04x", dualshock_read_axis(DUALSHOCK_AXIS_L2));
+                sprintf(msg, "L:%05d ", dualshock_read_axis(DUALSHOCK_AXIS_LY));
                 font_draw_text_small(0, 0, msg, LCD_WHITE, LCD_BLACK, true);
-                sprintf(msg, "r2=0x%04x", dualshock_read_axis(DUALSHOCK_AXIS_R2));
+                sprintf(msg, "R:%05d ", dualshock_read_axis(DUALSHOCK_AXIS_RY));
                 font_draw_text_small(0, 10, msg, LCD_WHITE, LCD_BLACK, true);
                 lcd_flush();
                 gpio_set_output(led, led_state);
