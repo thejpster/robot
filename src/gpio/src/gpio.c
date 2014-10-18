@@ -82,6 +82,7 @@ void gpio_init(void)
 void gpio_make_output(gpio_io_pin_t pin, int level)
 {
 #ifdef USE_WIRINGPI
+    digitalWrite(GPIO_GET_PIN(pin), level ? 1 : 0);
     pinMode(GPIO_GET_PIN(pin), OUTPUT);
 #else
     printf("gpio_make_output(pin=%u, level=%d)", pin, level);
