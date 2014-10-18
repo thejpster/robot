@@ -56,7 +56,7 @@
 /* The uppermost stripe is 0, the lowermost is 5. */
 /* The leftmost pixel is 0, the rightmost is 83 */
 
-#define NUM_STRIPES                 (LCD_HEIGHT/6)
+#define NUM_STRIPES                 (LCD_HEIGHT/8)
 #define PCD8544_POWERDOWN           0x04
 #define PCD8544_ENTRYMODE           0x02
 #define PCD8544_EXTENDEDINSTRUCTION 0x01
@@ -76,10 +76,26 @@
 #define DATA false
 
 /* Calculates which byte in the framebuffer holds the given pixel */
-#define CALC_OFFSET(x, y) ((x) + (((y)/6)*LCD_WIDTH))
+#define CALC_OFFSET(x, y) ((x) + (((y)/8)*LCD_WIDTH))
 
-#define SET_PIXEL(x, y) do { frame_buffer[CALC_OFFSET(x,y)] |= 1 << (7-((y)&7)); } while(0)
-#define CLR_PIXEL(x, y) do { frame_buffer[CALC_OFFSET(x,y)] &= ~(1 << (7-((y)&7))); } while(0)
+#define SET_PIXEL(x, y) do { \
+        size_t offset = CALC_OFFSET(x,y); \
+        /* printf("Setting %u,%u @ %zu\r\n", x, y, offset);*/ \
+        if (offset > sizeof(frame_buffer)) \
+        { \
+            abort(); \
+        } \
+        frame_buffer[offset] |= 1 << (((y)&7)); \
+    } while(0)
+#define CLR_PIXEL(x, y) do { \
+        size_t offset = CALC_OFFSET(x,y); \
+        /*printf("Clearing %u,%u @ %zu\r\n", x, y, offset); */ \
+        if (offset > sizeof(frame_buffer)) \
+        { \
+            abort(); \
+        } \
+        frame_buffer[offset] &= ~(1 << (((y)&7))); \
+    } while(0)
 
 /**************************************************
 * Data Types
@@ -97,6 +113,7 @@ static void write_lcd(
     bool is_command
 );
 
+static void set_normal(void);
 static void extended_command(uint8_t command);
 static void set_bias(uint8_t bias);
 static void set_contrast(uint8_t constrast);
@@ -114,10 +131,10 @@ static void paint_lcd(void);
 **************************************************/
 
 static int spi_fd;
-static uint8_t spi_mode = 0;
+static uint8_t spi_mode = SPI_MODE_0;
 static uint8_t spi_bpw = 8;
 static uint16_t spi_delay = 0;
-static uint32_t spi_speed = 4000000;
+static uint32_t spi_speed = 1000000;
 
 static uint8_t frame_buffer[NUM_STRIPES * LCD_WIDTH];
 /* Force a repaint */
@@ -145,8 +162,7 @@ int lcd_init(const char *p_filename)
         perror("Can't open SPI device");
         retval = 1;
     }
-
-    if (ioctl(spi_fd, SPI_IOC_WR_MODE, &spi_mode) < 0)
+    else if (ioctl(spi_fd, SPI_IOC_WR_MODE, &spi_mode) < 0)
     {
         printf("Can't set SPI mode to %u\r\n", spi_mode);
         retval = 1 ;
@@ -165,13 +181,16 @@ int lcd_init(const char *p_filename)
     if (retval == 0)
     {
         gpio_make_output(LCD_DC_PIN, 0);
+        gpio_make_output(LCD_RST_PIN, 1);
 
-        gpio_make_output(LCD_RST_PIN, 0);
+        //gpio_set_output(LCD_RST_PIN, 0);
         delay_ms(100);
-        gpio_set_output(LCD_RST_PIN, 1);
+        //gpio_set_output(LCD_RST_PIN, 1);
+        delay_ms(100);
 
-        set_bias(4);
-        set_contrast(40);
+        //set_bias(4);
+        //set_contrast(40);
+        //set_normal();
     }
 
     return retval;
@@ -332,33 +351,48 @@ static void write_lcd(
     bool is_command
     )
 {
-    struct spi_ioc_transfer spi;
 
+    //printf("Sending %zu bytes to LCD\r\n", data_len);
+    gpio_set_output(LCD_DC_PIN, is_command ? 0 : 1);
+    int ret;
+
+#if 0
+    struct spi_ioc_transfer spi;
     spi.tx_buf        = (intptr_t) p_data;
     spi.rx_buf        = (intptr_t) p_data;
     spi.len           = data_len;
     spi.delay_usecs   = spi_delay;
     spi.speed_hz      = spi_speed;
     spi.bits_per_word = spi_bpw;
-
-    gpio_set_output(LCD_DC_PIN, is_command ? 0 : 1);
-
-    int ret = ioctl(spi_fd, SPI_IOC_MESSAGE(1), &spi);
+    ret = ioctl(spi_fd, SPI_IOC_MESSAGE(1), &spi);
+#else
+    ret = write(spi_fd, p_data, data_len);
+#endif
     if (ret < 1)
     {
         printf("Error writing to SPI %d\r\n", ret);
     }
 }
 
-static void extended_command(uint8_t command)
+static void set_normal(void)
 {
-    uint8_t data[4] = {
-        PCD8544_FUNCTIONSET | PCD8544_EXTENDEDINSTRUCTION,
-        command,
-        PCD8544_FUNCTIONSET,
+    uint8_t data[1] = {
         PCD8544_DISPLAYCONTROL | PCD8544_DISPLAYNORMAL
     };
     write_lcd(data, NUMELTS(data), COMMAND);
+}
+
+static void extended_command(uint8_t command)
+{
+    uint8_t data[3] = {
+        PCD8544_FUNCTIONSET | PCD8544_EXTENDEDINSTRUCTION,
+        command,
+        PCD8544_FUNCTIONSET,
+    };
+    for(size_t i = 0; i < NUMELTS(data); i++)
+    {
+        write_lcd(&data[i], 1, COMMAND);
+    }
 }
 
 static void set_bias(uint8_t bias)
@@ -378,11 +412,13 @@ static void set_contrast(uint8_t contrast)
 /* Paints the whole framebuffer in to the LCD */
 static void paint_lcd(void)
 {
-    uint8_t cmd[2] = { PCD8544_SETYADDR | top_stripe, PCD8544_SETXADDR | 0 };
+    uint8_t cmd[2] = { PCD8544_SETYADDR | 0, PCD8544_SETXADDR | 0 };
     write_lcd(cmd, NUMELTS(cmd), COMMAND);
-    write_lcd(frame_buffer + (top_stripe*LCD_WIDTH), LCD_WIDTH * (1 + bottom_stripe - top_stripe), DATA);
-    bottom_stripe = 0;
-    top_stripe = NUM_STRIPES;
+    //write_lcd(frame_buffer + (top_stripe*LCD_WIDTH), LCD_WIDTH * (1 + bottom_stripe - top_stripe), DATA);
+    //bottom_stripe = 0;
+    //top_stripe = NUM_STRIPES;
+    //memset(frame_buffer, 0xFF, sizeof(frame_buffer));
+    write_lcd(frame_buffer, sizeof(frame_buffer), DATA);
 }
 
 #endif

@@ -33,6 +33,10 @@ env = Environment(
     }
     )
 
+if ARGUMENTS.get('USE_WIRINGPI') != '0':
+    env.Append(CPPDEFINES={'USE_WIRINGPI': 1})
+    env.Append(LIBS=['wiringPi'])
+
 if ARGUMENTS.get('LCD_SIM') == '1':
     env.Append(CPPDEFINES={'LCD_SIM': 1})
 

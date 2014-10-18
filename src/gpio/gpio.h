@@ -45,7 +45,7 @@ extern "C" {
 
 /* Macros to pack a port and pin into one value */
 /* Raspberry Pi only has one 'port' */
-#define GPIO_MAKE_IO_PIN(port, pin)  ( (gpio_io_pin_t) (1U<<(pin)) )
+#define GPIO_MAKE_IO_PIN(port, pin)  (pin)
 #define GPIO_GET_PORT(io_pin)  (0)
 #define GPIO_GET_PIN(io_pin)  (io_pin)
 

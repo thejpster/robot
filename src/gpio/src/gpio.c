@@ -177,6 +177,7 @@ uint32_t gpio_read_inputs(gpio_port_t port, uint32_t mask)
         mask <<= 1;
         pin++;
     }
+    return result;
 #else
     return 0;
 #endif
