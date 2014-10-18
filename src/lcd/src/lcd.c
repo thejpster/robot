@@ -22,6 +22,10 @@
 * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 * DEALINGS IN THE SOFTWARE.
 *
+* This is an LCD driver for PCD8544 based modules. These are
+* typically sold as "Nokia 5110 SPI LCD modules" from Adafruit
+* or suchlike.
+*
 *****************************************************/
 
 #ifndef LCD_SIM
@@ -50,25 +54,8 @@
 #define LCD_DC_PIN GPIO_MAKE_IO_PIN(0, 23)
 #define LCD_RST_PIN GPIO_MAKE_IO_PIN(0, 24)
 
-/* The LCD is arranged as 8 bit high stripes, 84 pixels across */
-/* There are six such stripes */
-/* The LSB is the top row in the stripe, MSB naturally the bottom */
-/* The uppermost stripe is 0, the lowermost is 5. */
-/* The leftmost pixel is 0, the rightmost is 83 */
-
-/* The following init code is from http://playground.arduino.cc/Code/PCD8544 */
-
-/*
-  LcdWrite(LCD_C, 0x21 );  // LCD Extended Commands.
-  LcdWrite(LCD_C, 0xB1 );  // Set LCD Vop (Contrast). 
-  LcdWrite(LCD_C, 0x04 );  // Set Temp coefficent. //0x04
-  LcdWrite(LCD_C, 0x14 );  // LCD bias mode 1:48. //0x13
-  LcdWrite(LCD_C, 0x0C );  // LCD in normal mode.
-  LcdWrite(LCD_C, 0x20 );
-  LcdWrite(LCD_C, 0x0C );
-*/
-
-#define NUM_STRIPES                 (LCD_HEIGHT/6)
+#define STRIPE_SIZE                 8
+#define NUM_STRIPES                 6
 
 /* These commands work in either mode */
 #define PCD8544_NOP                 0x00
@@ -99,10 +86,26 @@
 #define DATA false
 
 /* Calculates which byte in the framebuffer holds the given pixel */
-#define CALC_OFFSET(x, y) ((x) + (((y)/6)*LCD_WIDTH))
+#define CALC_OFFSET(x, y) ((x) + (((y)/8)*LCD_WIDTH))
 
-#define SET_PIXEL(x, y) do { frame_buffer[CALC_OFFSET(x,y)] |= 1 << (7-((y)&7)); } while(0)
-#define CLR_PIXEL(x, y) do { frame_buffer[CALC_OFFSET(x,y)] &= ~(1 << (7-((y)&7))); } while(0)
+#define SET_PIXEL(x, y) do { \
+        size_t offset = CALC_OFFSET(x,y); \
+        /* printf("Setting %u,%u @ %zu\r\n", x, y, offset);*/ \
+        if (offset > sizeof(frame_buffer)) \
+        { \
+            abort(); \
+        } \
+        frame_buffer[offset] |= 1 << (((y)&7)); \
+    } while(0)
+#define CLR_PIXEL(x, y) do { \
+        size_t offset = CALC_OFFSET(x,y); \
+        /*printf("Clearing %u,%u @ %zu\r\n", x, y, offset); */ \
+        if (offset > sizeof(frame_buffer)) \
+        { \
+            abort(); \
+        } \
+        frame_buffer[offset] &= ~(1 << (((y)&7))); \
+    } while(0)
 
 /**************************************************
 * Data Types
@@ -120,6 +123,7 @@ static void write_lcd(
     bool is_command
 );
 
+static void set_normal(void);
 static void extended_command(uint8_t command);
 static void set_bias(uint8_t bias);
 static void set_contrast(uint8_t constrast);
@@ -137,10 +141,9 @@ static void paint_lcd(void);
 **************************************************/
 
 static int spi_fd;
-static uint8_t spi_mode = 0;
+static uint8_t spi_mode = SPI_MODE_0;
 static uint8_t spi_bpw = 8;
-static uint16_t spi_delay = 0;
-static uint32_t spi_speed = 4000000;
+static uint32_t spi_speed = 1000000;
 
 static uint8_t frame_buffer[NUM_STRIPES * LCD_WIDTH];
 /* Force a repaint */
@@ -152,12 +155,13 @@ static unsigned int bottom_stripe = 0;
 ***************************************************/
 
 /**
- * Will set up the GPIO for driving the LCD.
+ * Will set up the GPIO and SPI for driving the LCD.
  *
  * See header file for pinout.
  *
+ * @param p_filename Path to an spi device, e.g. /dev/spidev0.0
+ * @return 0 for success, else failure
  */
-
 int lcd_init(const char *p_filename)
 {
     int retval = 0;
@@ -168,8 +172,7 @@ int lcd_init(const char *p_filename)
         perror("Can't open SPI device");
         retval = 1;
     }
-
-    if (ioctl(spi_fd, SPI_IOC_WR_MODE, &spi_mode) < 0)
+    else if (ioctl(spi_fd, SPI_IOC_WR_MODE, &spi_mode) < 0)
     {
         printf("Can't set SPI mode to %u\r\n", spi_mode);
         retval = 1 ;
@@ -190,11 +193,13 @@ int lcd_init(const char *p_filename)
         gpio_make_output(LCD_DC_PIN, 0);
 
         gpio_make_output(LCD_RST_PIN, 0);
+        gpio_set_output(LCD_RST_PIN, 0);
         delay_ms(100);
         gpio_set_output(LCD_RST_PIN, 1);
 
         set_bias(4);
-        set_contrast(40);
+        set_contrast(60);
+        set_normal();
     }
 
     return retval;
@@ -213,11 +218,6 @@ void lcd_deinit(void)
 void lcd_flush(void)
 {
     paint_lcd();
-}
-
-void lcd_set_backlight(uint8_t brightness)
-{
-    /* Nothing to set */
 }
 
 /**
@@ -272,8 +272,8 @@ void lcd_paint_fill_rectangle(
         }
 
     }
-    top_stripe = MIN(top_stripe, (y1 / 6)); 
-    bottom_stripe = MAX(top_stripe, (y2 / 6)); 
+    top_stripe = MIN(top_stripe, (y1 / STRIPE_SIZE)); 
+    bottom_stripe = MAX(top_stripe, (y2 / STRIPE_SIZE)); 
 }
 
 /**
@@ -320,8 +320,8 @@ void lcd_paint_mono_rectangle(
             }
         }
     }
-    top_stripe = MIN(top_stripe, (y1 / 6)); 
-    bottom_stripe = MAX(top_stripe, (y2 / 6)); 
+    top_stripe = MIN(top_stripe, (y1 / STRIPE_SIZE)); 
+    bottom_stripe = MAX(top_stripe, (y2 / STRIPE_SIZE)); 
 }
 
 /**
@@ -349,46 +349,69 @@ void lcd_paint_colour_rectangle(
 * Private Functions
 ***************************************************/
 
+/*
+ * Write some data to the LCD
+ *
+ * @param p_data The bytes to write
+ * @param data_len How many bytes to write
+ * @param is_command COMMAND for commands, DATA for data
+ */
 static void write_lcd(
     const uint8_t* p_data,
     size_t data_len,
     bool is_command
     )
 {
-    struct spi_ioc_transfer spi;
-
-    spi.tx_buf        = (intptr_t) p_data;
-    spi.rx_buf        = (intptr_t) p_data;
-    spi.len           = data_len;
-    spi.delay_usecs   = spi_delay;
-    spi.speed_hz      = spi_speed;
-    spi.bits_per_word = spi_bpw;
-
-    gpio_set_output(LCD_DC_PIN, is_command ? 0 : 1);
-
-    int ret = ioctl(spi_fd, SPI_IOC_MESSAGE(1), &spi);
+    gpio_set_output(LCD_DC_PIN, (is_command == COMMAND) ? 0 : 1);
+    int ret = write(spi_fd, p_data, data_len);
     if (ret < 1)
     {
         printf("Error writing to SPI %d\r\n", ret);
     }
 }
 
-static void extended_command(uint8_t command)
+/*
+ * Enable the display, non inverted.
+ */
+static void set_normal(void)
 {
-    uint8_t data[4] = {
-        PCD8544_FUNCTIONSET | PCD8544_EXTENDEDINSTRUCTION,
-        command,
-        PCD8544_FUNCTIONSET,
+    uint8_t data[] = {
         PCD8544_DISPLAYCONTROL | PCD8544_DISPLAYNORMAL
     };
     write_lcd(data, NUMELTS(data), COMMAND);
 }
 
+/*
+ * Send an extended command, by entering extended mode
+ * and then leaving it again afterwards.
+ *
+ * @param command The command to send (0x00..0xFF)
+ */
+static void extended_command(uint8_t command)
+{
+    uint8_t data[] = {
+        PCD8544_FUNCTIONSET | PCD8544_EXTENDEDINSTRUCTION,
+        command,
+        PCD8544_FUNCTIONSET,
+    };
+    write_lcd(data, NUMELTS(data), COMMAND);
+}
+
+/*
+ * Set the "bias system". 4 is a good figure (1:34).
+ *
+ * @param bias 0 (1:100) to 7 (1:9)
+ */
 static void set_bias(uint8_t bias)
 {
     extended_command(PCD8544_SETBIAS | bias);
 }
 
+/*
+ * Set the display contrast. 60 is a good figure.
+ *
+ * @param contrast 0x00..0x7F (or 127)
+ */
 static void set_contrast(uint8_t contrast)
 {
     if (contrast > 0x7F)
@@ -398,14 +421,18 @@ static void set_contrast(uint8_t contrast)
     extended_command(PCD8544_SETVOP | contrast);
 }
 
-/* Paints the whole framebuffer in to the LCD */
+/*
+ * Paints the whole framebuffer in to the LCD
+ */
 static void paint_lcd(void)
 {
-    uint8_t cmd[2] = { PCD8544_SETYADDR | top_stripe, PCD8544_SETXADDR | 0 };
+    uint8_t cmd[2] = { PCD8544_SETYADDR | 0, PCD8544_SETXADDR | 0 };
     write_lcd(cmd, NUMELTS(cmd), COMMAND);
     write_lcd(frame_buffer + (top_stripe*LCD_WIDTH), LCD_WIDTH * (1 + bottom_stripe - top_stripe), DATA);
-    bottom_stripe = 0;
-    top_stripe = NUM_STRIPES;
+    //bottom_stripe = 0;
+    //top_stripe = NUM_STRIPES;
+    //memset(frame_buffer, 0xFF, sizeof(frame_buffer));
+    //write_lcd(frame_buffer, NUMELTS(frame_buffer), DATA);
 }
 
 #endif

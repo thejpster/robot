@@ -123,12 +123,16 @@ int main(int argc, char **argv)
             .tv_usec = (1000 * 1000) / LOOPS_PER_SECOND
         };
         struct timeval loop_delay = delay_master;
-        menu_pwrs_init();
+        //menu_pwrs_init();
+        bool led_state = 1;
+        gpio_io_pin_t led = GPIO_MAKE_IO_PIN(GPIO_PORT_A, 18);
+        gpio_make_output(led, 0);
         while(1)
-        {
+            {
             dualshock_read_or_timeout(&loop_delay);
             if (loop_delay.tv_sec == 0 && loop_delay.tv_usec == 0)
             {
+                #if 0
                 printf("DUALSHOCK_AXIS_LX = %d\n", dualshock_read_axis(DUALSHOCK_AXIS_LX));
                 printf("DUALSHOCK_AXIS_LY = %d\n", dualshock_read_axis(DUALSHOCK_AXIS_LY));
                 printf("DUALSHOCK_AXIS_RX = %d\n", dualshock_read_axis(DUALSHOCK_AXIS_RX));
@@ -154,7 +158,15 @@ int main(int argc, char **argv)
                 printf("DUALSHOCK_BUTTON_L2 = %s\n", dualshock_read_button(DUALSHOCK_BUTTON_L2) ? "pressed" : "not-pressed");
                 printf("DUALSHOCK_BUTTON_R1 = %s\n", dualshock_read_button(DUALSHOCK_BUTTON_R1) ? "pressed" : "not-pressed");
                 printf("DUALSHOCK_BUTTON_R2 = %s\n", dualshock_read_button(DUALSHOCK_BUTTON_R2) ? "pressed" : "not-pressed");
-
+                #endif
+                char msg[14];
+                sprintf(msg, "L:%05d ", dualshock_read_axis(DUALSHOCK_AXIS_LY));
+                font_draw_text_small(0, 0, msg, LCD_WHITE, LCD_BLACK, true);
+                sprintf(msg, "R:%05d ", dualshock_read_axis(DUALSHOCK_AXIS_RY));
+                font_draw_text_small(0, 10, msg, LCD_WHITE, LCD_BLACK, true);
+                lcd_flush();
+                gpio_set_output(led, led_state);
+                led_state = !led_state;
                 loop_delay = delay_master;
             }
         }
@@ -212,6 +224,7 @@ static int process_arguments(int argc, char** argv)
 
         case 'h':
             print_help();
+            retval = 1;
             break;
 
         default:

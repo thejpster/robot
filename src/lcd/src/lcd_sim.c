@@ -142,11 +142,6 @@ void lcd_flush(void)
     /* Nothing */
 }
 
-void lcd_set_backlight(uint8_t brightness)
-{
-    /* Nothing */
-}
-
 /**
  * Paints a solid rectangle to the LCD in the given colour.
  *
