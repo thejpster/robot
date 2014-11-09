@@ -1,31 +1,27 @@
 /*****************************************************
 *
-* Stellaris Launchpad LCD Driver
-*
-* Driver suits SSD1961 with self-initialisation, e.g.
-* DisplayTech INT043BTFT.
-*
-* See https://www.displaytech-us.com/4-3-inch-integrated-tft-driver-boards
+* Pi Wars Robot Software (PWRS) LCD Driver
 *
 * Copyright (c) 2013-2014 theJPster (www.thejpster.org.uk)
 *
-* Permission is hereby granted, free of charge, to any person obtaining a
-* copy of this software and associated documentation files (the "Software"),
-* to deal in the Software without restriction, including without limitation
-* the rights to use, copy, modify, merge, publish, distribute, sublicense,
-* and/or sell copies of the Software, and to permit persons to whom the
-* Software is furnished to do so, subject to the following conditions:
+* PWRS is free software: you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
 *
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
+* PWRS is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
 *
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-* FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-* DEALINGS IN THE SOFTWARE.
+* You should have received a copy of the GNU General Public License
+* along with PWRS.  If not, see <http://www.gnu.org/licenses/>.
+*
+* This is an LCD driver for PCD8544 based modules. These are
+* typically sold as "Nokia 5110 SPI LCD modules" from Adafruit
+* or suchlike. There is also a simulator mode for running
+* on a PC, which pushes pixels via a FIFO to a separate
+* LCD simulator program.
 *
 *****************************************************/
 
@@ -104,36 +100,48 @@ typedef uint32_t lcd_colour_t;
 ***************************************************/
 
 /**
- * Will set up the GPIO for driving the LCD.
+ * Initialise the LCD.
+ *
+ * This will include GPIO pin directions
+ * as required.
+ *
+ * @param[int] p_filename The path to the device file, if required.
+ *                        In simulator mode, this is the FIFO. With
+ *                        SPI LCDs, this is the /dev/spidevX.X entry.
+ * @return 0 on success, anything else on error
  */
 extern int lcd_init(const char* p_filename);
 
-/* Make all pins inputs */
+/**
+ * De-initialise the LCD.
+ *
+ * This will reduce power consumption and allows the display
+ * to be powered off without back-powering through the IO
+ * lines.
+ */
 extern void lcd_deinit(void);
+
 
 /**
  * Enables LCD display.
  */
 extern void lcd_on(void);
 
-/**
- * Disables LCD display.
- */
-extern void lcd_off(void);
 
 /**
  * Flushes the framebuffer to the LCD.
  */
 extern void lcd_flush(void);
 
+
 /**
  * Paints a solid rectangle to the LCD in the given colour.
  *
- * @param bg the RGB colour for all the pixels
- * @param x1 the starting column
- * @param x2 the end column
- * @param y1 the starting row
- * @param y2 the end row
+ * @param[in] bg the RGB colour for all the pixels
+ * @param[in] x1 the starting column
+ * @param[in] x2 the end column
+ * @param[in] y1 the starting row
+ * @param[in] y2 the end row
  */
 extern void lcd_paint_fill_rectangle(
     lcd_colour_t bg,
@@ -143,24 +151,44 @@ extern void lcd_paint_fill_rectangle(
     lcd_row_t y2
 );
 
+
+/**
+ * Paint a single pixel.
+ *
+ * This is a wrapper around a rectangle fill
+ * with a 1x1 sized rectangle.
+ *
+ * @param[in] col the RGB colour for the pixels
+ * @param[in] x the column
+ * @param[in] y the row
+ */
 #define lcd_paint_pixel(col, x, y) lcd_paint_fill_rectangle(col, x, x, y, y)
 
+
+/**
+ * Set the entire screen to black.
+ *
+ * This is a wrapper around a rectangle fill set
+ * to the size of the screen.
+ *
+ */
 #define lcd_paint_clear_screen() lcd_paint_fill_rectangle( \
         LCD_BLACK, \
         LCD_FIRST_COLUMN, LCD_LAST_COLUMN, \
         LCD_FIRST_ROW, LCD_LAST_ROW)
 
+
 /**
  * Paints a mono rectangle to the LCD in the given colours. This is useful for
  * text.
  *
- * @param fg the RGB colour for set pixels
- * @param bg the RGB colour for unset pixels
- * @param x1 the starting column
- * @param x2 the end column
- * @param y1 the starting row
- * @param y2 the end row
- * @param p_pixels 1bpp data for the given rectangle, length (x2-x1+1)*(y2-y1+1) bits
+ * @param[in] fg the RGB colour for set pixels
+ * @param[in] bg the RGB colour for unset pixels
+ * @param[in] x1 the starting column
+ * @param[in] x2 the end column
+ * @param[in] y1 the starting row
+ * @param[in] y2 the end row
+ * @param[in] p_pixels 1bpp data for the given rectangle, length (x2-x1+1)*(y2-y1+1) bits
  */
 extern void lcd_paint_mono_rectangle(
     lcd_colour_t fg,
@@ -172,32 +200,6 @@ extern void lcd_paint_mono_rectangle(
     const uint8_t *p_pixels
 );
 
-/**
- * Paints a full-colour rectangle to the LCD. This is useful for graphics but
- * you need 510KB for a full-screen image.
- *
- * @param x1 the starting column
- * @param x2 the end column
- * @param y1 the starting row
- * @param y2 the end row
- * @param p_pixels Run-length encoded pixel values, where the count is in the top byte
- */
-extern void lcd_paint_colour_rectangle(
-    lcd_col_t x1,
-    lcd_col_t x2,
-    lcd_row_t y1,
-    lcd_row_t y2,
-    const lcd_colour_t *p_rle_pixels
-);
-
-extern void lcd_read_color_rectangle(
-    lcd_col_t x1,
-    lcd_col_t x2,
-    lcd_row_t y1,
-    lcd_row_t y2,
-    lcd_colour_t *p_rle_pixels,
-    size_t pixel_len
-);
 
 #ifdef __cplusplus
 }

@@ -1,31 +1,38 @@
 /*****************************************************
 *
-* Stellaris Launchpad LCD Driver Simulator
+* Pi Wars Robot Software (PWRS) LCD Driver Simulator
 *
-* Copyright (c) 2014 theJPster (www.thejpster.org.uk)
+* Copyright (c) 2013-2014 theJPster (www.thejpster.org.uk)
 *
-* Simulates an LCD by writing primitives to a FIFO.
-* There is a Python application (lcd_render.py) which
-* picks up these primitives and renders them to a 
-* window.
+* PWRS is free software: you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
 *
-* Permission is hereby granted, free of charge, to any person obtaining a
-* copy of this software and associated documentation files (the "Software"),
-* to deal in the Software without restriction, including without limitation
-* the rights to use, copy, modify, merge, publish, distribute, sublicense,
-* and/or sell copies of the Software, and to permit persons to whom the
-* Software is furnished to do so, subject to the following conditions:
+* PWRS is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
 *
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
+* You should have received a copy of the GNU General Public License
+* along with PWRS.  If not, see <http://www.gnu.org/licenses/>.
 *
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-* FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-* DEALINGS IN THE SOFTWARE.
+* This allows you to develop LCD code on a PC, by pushing
+* pixels via a FIFO to a separate rendering program.
+*
+* The protocol is ASCII, line-based. Co-ordinates are decimal,
+* colours are 24-bit RGB hex. The commands available
+* are:
+*
+*   reset
+*       - resets the display
+*   box <x1> <x2> <y1> <y2> <colour>
+*       - draws a box in the specified colour
+*   bitmap <x1> <x2> <y1> <y2> <fg-colour> <bg-colour> <bitmap>
+*       - draws a bitmap. Each bit in the bitmap is a row-wise pixel.
+*         When 1, fg-colour is used, otherwise bg-colour is used.
+*   plot <x> <y> <colour>
+*       - plots a single pixel in the specified colour
 *
 *****************************************************/
 
@@ -55,7 +62,7 @@
 * Function Prototypes
 **************************************************/
 
-static void pixel_fn(int x, int y, uint32_t col);
+/* None */
 
 /**************************************************
 * Public Data
@@ -74,10 +81,10 @@ static FILE* f;
 ***************************************************/
 
 /**
- * Will set up the GPIO for driving the LCD.
+ * Opens the FIFO for writing to the simulated LCD.
  *
- * See header file for pinout.
- *
+ * @param[int] p_filename The path to the FIFO file.
+ * @return 0 on success, anything else on error
  */
 int lcd_init(const char* p_filename)
 {
@@ -119,23 +126,28 @@ int lcd_init(const char* p_filename)
     return 0;
 }
 
+/**
+ * Close the fifo.
+ */
 void lcd_deinit(void)
 {
-    /* Nothing */
+    fclose(f);
+    f = NULL;
 }
 
+/** 
+ * Turn the LCD on (actually, does nothing).
+ */
 void lcd_on(void)
 {
     /* Nothing */
 }
 
-void lcd_off(void)
-{
-    /* Nothing */
-}
 
 /**
  * Flushes the framebuffer to the LCD.
+ *
+ * Actually, this does nothing as this isn't a framebuffer.
  */
 void lcd_flush(void)
 {
@@ -145,11 +157,11 @@ void lcd_flush(void)
 /**
  * Paints a solid rectangle to the LCD in the given colour.
  *
- * @param bg the RGB colour for all the pixels
- * @param x1 the starting column
- * @param x2 the end column
- * @param y1 the starting row
- * @param y2 the end row
+ * @param[in] bg the RGB colour for all the pixels
+ * @param[in] x1 the starting column
+ * @param[in] x2 the end column
+ * @param[in] y1 the starting row
+ * @param[in] y2 the end row
  */
 void lcd_paint_fill_rectangle(
     uint32_t bg,
@@ -167,13 +179,13 @@ void lcd_paint_fill_rectangle(
  * Paints a mono rectangle to the LCD in the given colours. This is useful for
  * text.
  *
- * @param fg the RGB colour for set pixels
- * @param bg the RGB colour for unset pixels
- * @param x1 the starting column
- * @param x2 the end column
- * @param y1 the starting row
- * @param y2 the end row
- * @param p_pixels 1bpp data for the given rectangle, length (x2-x1+1)*(y2-y1+1) bits
+ * @param[in] fg the RGB colour for set pixels
+ * @param[in] bg the RGB colour for unset pixels
+ * @param[in] x1 the starting column
+ * @param[in] x2 the end column
+ * @param[in] y1 the starting row
+ * @param[in] y2 the end row
+ * @param[in] p_pixels 1bpp data for the given rectangle, length (x2-x1+1)*(y2-y1+1) bits
  */
 void lcd_paint_mono_rectangle(
     uint32_t fg,
@@ -196,58 +208,12 @@ void lcd_paint_mono_rectangle(
     fflush(f);
 }
 
-/**
- * Paints a full-colour rectangle to the LCD. This is useful for graphics but
- * you need up to 510KB for a full-screen image.
- *
- * @param x1 the starting column
- * @param x2 the end column
- * @param y1 the starting row
- * @param y2 the end row
- * @param p_pixels Run-length encoded pixel values, where the count is in the top byte
- */
-void lcd_paint_colour_rectangle(
-    lcd_col_t x1,
-    lcd_col_t x2,
-    lcd_row_t y1,
-    lcd_row_t y2,
-    const uint32_t *p_rle_pixels
-)
-{
-    size_t size = (1 + x2 - x1) * (1 + y2 - y1);
-    lcd_col_t x = x1;
-    lcd_row_t y = y1;
-    while (size)
-    {
-        uint32_t pixel = *p_rle_pixels;
-        uint8_t count = (pixel >> 24) & 0xFF;
-        size -= count;
-        while (count--)
-        {
-            pixel_fn(x, y, pixel & 0xFFFFFF);
-            if (x == x2)
-            {
-                x = x1;
-                y++;
-            }
-            else
-            {
-                x++;
-            }
-        }
-        p_rle_pixels++;
-    }
-}
 
 /**************************************************
 * Private Functions
 ***************************************************/
 
-static void pixel_fn(int x, int y, uint32_t colour)
-{
-    fprintf(f, "plot %d %d 0x%06"PRIx32"\n", x, y, colour);
-    fflush(f);
-}
+/* None */
 
 
 #endif

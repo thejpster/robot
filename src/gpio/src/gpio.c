@@ -1,6 +1,6 @@
 /*****************************************************
 *
-* Pi Wars Robot Software (PWRS)
+* Pi Wars Robot Software (PWRS) GPIO driver
 *
 * Copyright (c) 2014 theJPster (pwrs@hejpster.org.uk)
 *

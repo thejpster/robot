@@ -1,18 +1,25 @@
 {
-    "folders":
-    [
-        {
-            "follow_symlinks": true,
-            "path": "."
-        }
-    ],
-    "build_systems":
-    [
-        {
-            "working_dir": "${project_path:${folder}}",
-            "file_regex": "^[ ]*(...*?):([0-9]*):[0-9]+: ",
-            "name": "Robot SCons Build",
-            "cmd": ["scons"]
-        }
-    ]
+	"build_systems":
+	[
+		{
+			"cmd":
+			[
+				"scons"
+			],
+			"file_regex": "^[ ]*(...*?):([0-9]*):[0-9]+: ",
+			"name": "Robot SCons Build",
+			"working_dir": "${project_path:${folder}}"
+		}
+	],
+	"folders":
+	[
+		{
+			"follow_symlinks": true,
+			"path": "."
+		},
+		{
+			"follow_symlinks": true,
+			"path": "/home/jonathan/robot_pi"
+		}
+	]
 }

@@ -1,31 +1,34 @@
 /*****************************************************
 *
-* Stellaris Launchpad LCD Driver
+* Pi Wars Robot Software (PWRS) LCD Driver
 *
 * Copyright (c) 2013-2014 theJPster (www.thejpster.org.uk)
 *
-* Permission is hereby granted, free of charge, to any person obtaining a
-* copy of this software and associated documentation files (the "Software"),
-* to deal in the Software without restriction, including without limitation
-* the rights to use, copy, modify, merge, publish, distribute, sublicense,
-* and/or sell copies of the Software, and to permit persons to whom the
-* Software is furnished to do so, subject to the following conditions:
+* PWRS is free software: you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
 *
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
+* PWRS is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
 *
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-* FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-* DEALINGS IN THE SOFTWARE.
+* You should have received a copy of the GNU General Public License
+* along with PWRS.  If not, see <http://www.gnu.org/licenses/>.
 *
 * This is an LCD driver for PCD8544 based modules. These are
 * typically sold as "Nokia 5110 SPI LCD modules" from Adafruit
 * or suchlike.
 *
+* The screen is 84 pixels across by 48 pixels high.
+* The 48 pixels are arranged as six stripes of eight pixels.
+* Each vertical column in a stripe is one byte, with the MSB
+* the uppermost pixel. So, a full screen is 84 x 6 bytes.
+*
+* For performance reasons, this implementation maintains
+* an internal frame buffer which is blitted to the
+* screen on flush.
 *****************************************************/
 
 #ifndef LCD_SIM
@@ -50,6 +53,9 @@
 /**************************************************
 * Defines
 ***************************************************/
+
+#define DEFAULT_BIAS 4
+#define DEFAULT_CONTRAST 60
 
 #define LCD_DC_PIN GPIO_MAKE_IO_PIN(0, 23)
 #define LCD_RST_PIN GPIO_MAKE_IO_PIN(0, 24)
@@ -85,8 +91,11 @@
 #define COMMAND true
 #define DATA false
 
+/* Which which stripe a row value is in, from 0..NUM_STRIPES */
+#define FIND_STRIPE(y) ((y)/STRIPE_SIZE)
+
 /* Calculates which byte in the framebuffer holds the given pixel */
-#define CALC_OFFSET(x, y) ((x) + (((y)/8)*LCD_WIDTH))
+#define CALC_OFFSET(x, y) ((x) + (FIND_STRIPE(y)*LCD_WIDTH))
 
 #define SET_PIXEL(x, y) do { \
         size_t offset = CALC_OFFSET(x,y); \
@@ -97,6 +106,7 @@
         } \
         frame_buffer[offset] |= 1 << (((y)&7)); \
     } while(0)
+
 #define CLR_PIXEL(x, y) do { \
         size_t offset = CALC_OFFSET(x,y); \
         /*printf("Clearing %u,%u @ %zu\r\n", x, y, offset); */ \
@@ -117,18 +127,14 @@
 * Function Prototypes
 **************************************************/
 
-static void write_lcd(
-    const uint8_t* p_data,
-    size_t data_len,
-    bool is_command
-);
+static void write_lcd(const uint8_t *p_data, size_t data_len, bool is_command);
 
 static void set_normal(void);
 static void extended_command(uint8_t command);
 static void set_bias(uint8_t bias);
 static void set_contrast(uint8_t constrast);
-
-static void paint_lcd(void);
+static void damage_rows(lcd_row_t y1, lcd_row_t y2);
+static void clear_damage(void);
 
 /**************************************************
 * Public Data
@@ -145,22 +151,25 @@ static uint8_t spi_mode = SPI_MODE_0;
 static uint8_t spi_bpw = 8;
 static uint32_t spi_speed = 1000000;
 
-static uint8_t frame_buffer[NUM_STRIPES * LCD_WIDTH];
-/* Force a repaint */
-static unsigned int top_stripe = NUM_STRIPES;
-static unsigned int bottom_stripe = 0;
+static uint8_t frame_buffer[NUM_STRIPES *LCD_WIDTH];
+/* We paint only the damaged stripes (which to start off
+ * with, is none of them) */
+static unsigned int top_stripe;
+static unsigned int bottom_stripe;
 
 /**************************************************
 * Public Functions
 ***************************************************/
 
 /**
- * Will set up the GPIO and SPI for driving the LCD.
+ * Initialises the Nokia 5110 LCD.
  *
- * See header file for pinout.
+ * This will set up the GPIO and SPI for driving the LCD
+ * and do a screen reset.
  *
- * @param p_filename Path to an spi device, e.g. /dev/spidev0.0
- * @return 0 for success, else failure
+ * @param[int] p_filename The path to the device file. In
+ *                        this driver, this is the /dev/spidevX.X entry.
+ * @return 0 on success, anything else on error
  */
 int lcd_init(const char *p_filename)
 {
@@ -193,41 +202,55 @@ int lcd_init(const char *p_filename)
         gpio_make_output(LCD_DC_PIN, 0);
 
         gpio_make_output(LCD_RST_PIN, 0);
-        gpio_set_output(LCD_RST_PIN, 0);
         delay_ms(100);
         gpio_set_output(LCD_RST_PIN, 1);
 
-        set_bias(4);
-        set_contrast(60);
+        set_bias(DEFAULT_BIAS);
+        set_contrast(DEFAULT_CONTRAST);
         set_normal();
     }
 
+    clear_damage();
     return retval;
 }
 
-/* Make all pins inputs */
+
+/**
+ * De-initialise the LCD.
+ *
+ * This will reduce power consumption and allows the display
+ * to be powered off without back-powering through the IO
+ * lines.
+ */
 void lcd_deinit(void)
 {
     gpio_set_output(LCD_RST_PIN, 0);
+    gpio_make_input(LCD_DC_PIN);
     close(spi_fd);
 }
 
 /**
  * Flushes the framebuffer to the LCD.
+ *
+ * We only flush the damaged portion, marked by top_stripe and bottom_stripe.
+ * These values are then reset to indicate that none of the buffer is damaged.
  */
 void lcd_flush(void)
 {
-    paint_lcd();
+    uint8_t cmd[2] = { PCD8544_SETYADDR | 0, PCD8544_SETXADDR | 0 };
+    write_lcd(cmd, NUMELTS(cmd), COMMAND);
+    write_lcd(frame_buffer + (top_stripe * LCD_WIDTH), LCD_WIDTH * (1 + bottom_stripe - top_stripe), DATA);
+    clear_damage();
 }
 
 /**
  * Paints a solid rectangle to the LCD in the given colour.
  *
- * @param bg the RGB colour for all the pixels
- * @param x1 the starting column
- * @param x2 the end column
- * @param y1 the starting row
- * @param y2 the end row
+ * @param[in] bg the RGB colour for all the pixels
+ * @param[in] x1 the starting column
+ * @param[in] x2 the end column
+ * @param[in] y1 the starting row
+ * @param[in] y2 the end row
  */
 void lcd_paint_fill_rectangle(
     uint32_t bg,
@@ -241,13 +264,15 @@ void lcd_paint_fill_rectangle(
     {
         if ((y1 == LCD_FIRST_ROW) && (y2 == LCD_LAST_ROW) && (x1 == LCD_FIRST_COLUMN) && (x2 == LCD_LAST_COLUMN))
         {
+            /* Cheat in the common case */
             memset(frame_buffer, 0, sizeof(frame_buffer));
         }
         else
         {
-            for(lcd_col_t x = x1; x <= x2; x++)
+            /* We could optimise this if required, paying attention to stripes */
+            for (lcd_col_t x = x1; x <= x2; x++)
             {
-                for(lcd_row_t y = y1; y <= y2; y++)
+                for (lcd_row_t y = y1; y <= y2; y++)
                 {
                     CLR_PIXEL(x, y);
                 }
@@ -258,13 +283,15 @@ void lcd_paint_fill_rectangle(
     {
         if ((y1 == LCD_FIRST_ROW) && (y2 == LCD_LAST_ROW) && (x1 == LCD_FIRST_COLUMN) && (x2 == LCD_LAST_COLUMN))
         {
+            /* Cheat in the common case */
             memset(frame_buffer, 0xFF, sizeof(frame_buffer));
         }
         else
         {
-            for(lcd_col_t x = x1; x <= x2; x++)
+            /* We could optimise this if required, paying attention to stripes */
+            for (lcd_col_t x = x1; x <= x2; x++)
             {
-                for(lcd_row_t y = y1; y <= y2; y++)
+                for (lcd_row_t y = y1; y <= y2; y++)
                 {
                     SET_PIXEL(x, y);
                 }
@@ -272,21 +299,20 @@ void lcd_paint_fill_rectangle(
         }
 
     }
-    top_stripe = MIN(top_stripe, (y1 / STRIPE_SIZE)); 
-    bottom_stripe = MAX(top_stripe, (y2 / STRIPE_SIZE)); 
+    damage_rows(y1, y2);
 }
 
 /**
  * Paints a mono rectangle to the LCD in the given colours. This is useful for
  * text.
  *
- * @param fg the RGB colour for set pixels
- * @param bg the RGB colour for unset pixels
- * @param x1 the starting column
- * @param x2 the end column
- * @param y1 the starting row
- * @param y2 the end row
- * @param p_pixels 1bpp data for the given rectangle, length (x2-x1+1)*(y2-y1+1) bits
+ * @param[in] fg the RGB colour for set pixels
+ * @param[in] bg the RGB colour for unset pixels
+ * @param[in] x1 the starting column
+ * @param[in] x2 the end column
+ * @param[in] y1 the starting row
+ * @param[in] y2 the end row
+ * @param[in] p_pixels 1bpp data for the given rectangle, length (x2-x1+1)*(y2-y1+1) bits
  */
 void lcd_paint_mono_rectangle(
     uint32_t fg,
@@ -300,9 +326,9 @@ void lcd_paint_mono_rectangle(
 {
     uint8_t pixel = *p_pixels++;
     uint8_t mask = 0x80;
-    for(lcd_row_t y = y1; y <= y2; y++)
+    for (lcd_row_t y = y1; y <= y2; y++)
     {
-        for(lcd_col_t x = x1; x <= x2; x++)
+        for (lcd_col_t x = x1; x <= x2; x++)
         {
             if (pixel & mask)
             {
@@ -320,30 +346,9 @@ void lcd_paint_mono_rectangle(
             }
         }
     }
-    top_stripe = MIN(top_stripe, (y1 / STRIPE_SIZE)); 
-    bottom_stripe = MAX(top_stripe, (y2 / STRIPE_SIZE)); 
+    damage_rows(y1, y2);
 }
 
-/**
- * Paints a full-colour rectangle to the LCD. This is useful for graphics but
- * you need up to 510KB for a full-screen image.
- *
- * @param x1 the starting column
- * @param x2 the end column
- * @param y1 the starting row
- * @param y2 the end row
- * @param p_pixels Run-length encoded pixel values, where the count is in the top byte
- */
-void lcd_paint_colour_rectangle(
-    lcd_col_t x1,
-    lcd_col_t x2,
-    lcd_row_t y1,
-    lcd_row_t y2,
-    const uint32_t *p_rle_pixels
-)
-{
-    /* Not implemented */
-}
 
 /**************************************************
 * Private Functions
@@ -352,15 +357,15 @@ void lcd_paint_colour_rectangle(
 /*
  * Write some data to the LCD
  *
- * @param p_data The bytes to write
- * @param data_len How many bytes to write
- * @param is_command COMMAND for commands, DATA for data
+ * @param[in] p_data The bytes to write
+ * @param[in] data_len How many bytes to write
+ * @param[in] is_command COMMAND for commands, DATA for data
  */
 static void write_lcd(
-    const uint8_t* p_data,
+    const uint8_t *p_data,
     size_t data_len,
     bool is_command
-    )
+)
 {
     gpio_set_output(LCD_DC_PIN, (is_command == COMMAND) ? 0 : 1);
     int ret = write(spi_fd, p_data, data_len);
@@ -370,26 +375,29 @@ static void write_lcd(
     }
 }
 
-/*
- * Enable the display, non inverted.
+
+/**
+ * Enable the display. Use non inverted mode.
  */
 static void set_normal(void)
 {
-    uint8_t data[] = {
+    uint8_t data[] =
+    {
         PCD8544_DISPLAYCONTROL | PCD8544_DISPLAYNORMAL
     };
     write_lcd(data, NUMELTS(data), COMMAND);
 }
 
-/*
- * Send an extended command, by entering extended mode
- * and then leaving it again afterwards.
+/**
+ * Send an extended command. Enter extended mode
+ * and then leave it again afterwards.
  *
- * @param command The command to send (0x00..0xFF)
+ * @param[in] command The command to send (0x00..0xFF)
  */
 static void extended_command(uint8_t command)
 {
-    uint8_t data[] = {
+    uint8_t data[] =
+    {
         PCD8544_FUNCTIONSET | PCD8544_EXTENDEDINSTRUCTION,
         command,
         PCD8544_FUNCTIONSET,
@@ -397,20 +405,22 @@ static void extended_command(uint8_t command)
     write_lcd(data, NUMELTS(data), COMMAND);
 }
 
-/*
+
+/**
  * Set the "bias system". 4 is a good figure (1:34).
  *
- * @param bias 0 (1:100) to 7 (1:9)
+ * @param[in] bias 0 (1:100) to 7 (1:9)
  */
 static void set_bias(uint8_t bias)
 {
     extended_command(PCD8544_SETBIAS | bias);
 }
 
-/*
+
+/**
  * Set the display contrast. 60 is a good figure.
  *
- * @param contrast 0x00..0x7F (or 127)
+ * @param[in] contrast 0x00..0x7F (or 127)
  */
 static void set_contrast(uint8_t contrast)
 {
@@ -421,18 +431,27 @@ static void set_contrast(uint8_t contrast)
     extended_command(PCD8544_SETVOP | contrast);
 }
 
-/*
- * Paints the whole framebuffer in to the LCD
+
+/**
+ * Marks the specified rows as damaged.
+ *
+ * @param[in] y1 The uppermost row
+ * @param[in] y2 The bottommost row
  */
-static void paint_lcd(void)
+static void damage_rows(lcd_row_t y1, lcd_row_t y2)
 {
-    uint8_t cmd[2] = { PCD8544_SETYADDR | 0, PCD8544_SETXADDR | 0 };
-    write_lcd(cmd, NUMELTS(cmd), COMMAND);
-    write_lcd(frame_buffer + (top_stripe*LCD_WIDTH), LCD_WIDTH * (1 + bottom_stripe - top_stripe), DATA);
-    //bottom_stripe = 0;
-    //top_stripe = NUM_STRIPES;
-    //memset(frame_buffer, 0xFF, sizeof(frame_buffer));
-    //write_lcd(frame_buffer, NUMELTS(frame_buffer), DATA);
+    top_stripe = MIN(top_stripe, FIND_STRIPE(y1));
+    bottom_stripe = MAX(bottom_stripe, FIND_STRIPE(y2));
+}
+
+/**
+ * Marks no rows as damaged.
+ */
+static void clear_damage(void)
+{
+    /* Off the scale values. */
+    bottom_stripe = 0;
+    top_stripe = NUM_STRIPES;
 }
 
 #endif
