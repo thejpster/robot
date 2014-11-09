@@ -55,6 +55,8 @@ bool select_mode(
     const struct menu_item_t *p_menu_item
 );
 
+static bool debounce_button(void);
+
 /**************************************************
 * Public Data
 **************************************************/
@@ -70,17 +72,20 @@ static bool mode_first = true;
 static const struct menu_item_t top_menu_items[] =
 {
     { "Remote", MENU_ITEM_TYPE_ACTION, NULL, select_mode },
-    { "Spin", MENU_ITEM_TYPE_ACTION, NULL, select_mode },
+    { "Follow", MENU_ITEM_TYPE_ACTION, NULL, select_mode },
+    { "Hunt", MENU_ITEM_TYPE_ACTION, NULL, select_mode },
+    { "Turn", MENU_ITEM_TYPE_ACTION, NULL, select_mode },
 };
 
 static const struct menu_t top_menu =
 {
-    "P.W.R.S",
-    NUMELTS(top_menu_items),
-    NULL,
-    top_menu_items
+    .p_title = "P.W.R.S",
+    .num_items = NUMELTS(top_menu_items),
+    .p_menu_items = top_menu_items,
+    .hide_back = true
 };
 
+static enum dualshock_button_t last_button = DUALSHOCK_NUM_BUTTONS;
 /**************************************************
 * Public Functions
 ***************************************************/
@@ -90,23 +95,36 @@ static const struct menu_t top_menu =
  */
 void mode_menu(void)
 {
+
     if (mode_first)
     {
         menu_init(&top_menu);
         menu_redraw(true);
         mode_first = false;
     }
+
+    if (debounce_button())
+    {
+        return;
+    }
+
     if (dualshock_read_button(DUALSHOCK_BUTTON_UP))
     {
+        printf("Up!\r\n");
         menu_keypress(MENU_KEYPRESS_UP);
+        last_button = DUALSHOCK_BUTTON_UP;
     }
     else if (dualshock_read_button(DUALSHOCK_BUTTON_DOWN))
     {
+        printf("Down!\r\n");
         menu_keypress(MENU_KEYPRESS_DOWN);
+        last_button = DUALSHOCK_BUTTON_DOWN;
     }
-    else if (dualshock_read_button(DUALSHOCK_BUTTON_SELECT))
+    else if (dualshock_read_button(DUALSHOCK_BUTTON_CROSS))
     {
+        printf("Enter!\r\n");
         menu_keypress(MENU_KEYPRESS_ENTER);
+        last_button = DUALSHOCK_BUTTON_CROSS;
     }
 }
 
@@ -116,22 +134,83 @@ void mode_menu(void)
 void mode_remote_control(void)
 {
     char msg[14];
+
+    if (debounce_button())
+    {
+        return;
+    }
+
     sprintf(msg, "L:%05d ", dualshock_read_axis(DUALSHOCK_AXIS_LY));
     font_draw_text_small(0, 0, msg, LCD_WHITE, LCD_BLACK, true);
     sprintf(msg, "R:%05d ", dualshock_read_axis(DUALSHOCK_AXIS_RY));
     font_draw_text_small(0, 10, msg, LCD_WHITE, LCD_BLACK, true);
+    sprintf(msg, "B:%05d ", dualshock_read_axis(DUALSHOCK_AXIS_R2));
+    font_draw_text_small(0, 20, msg, LCD_WHITE, LCD_BLACK, true);
     lcd_flush();    
+
+    if (dualshock_read_button(DUALSHOCK_BUTTON_CROSS))
+    {
+        last_button = DUALSHOCK_BUTTON_CROSS;
+        change_mode(mode_menu);
+    }
 }
 
 /**
- * Remote control mode.
+ * Does a three point turn.
+ *
  */
-void mode_spin(void)
+void mode_turn(void)
 {
-    font_draw_text_small(0, 10, "Spin!", LCD_WHITE, LCD_BLACK, true);
-    lcd_flush();    
-    if (dualshock_read_button(DUALSHOCK_BUTTON_SELECT))
+    if (debounce_button())
     {
+        return;
+    }
+
+    font_draw_text_small(0, 10, "Turn!", LCD_WHITE, LCD_BLACK, true);
+    lcd_flush();    
+    if (dualshock_read_button(DUALSHOCK_BUTTON_CROSS))
+    {
+        last_button = DUALSHOCK_BUTTON_CROSS;
+        change_mode(mode_menu);
+    }
+}
+
+/**
+ * Follows a white line.
+ *
+ */
+void mode_follow(void)
+{
+    if (debounce_button())
+    {
+        return;
+    }
+
+    font_draw_text_small(0, 10, "Line!", LCD_WHITE, LCD_BLACK, true);
+    lcd_flush();    
+    if (dualshock_read_button(DUALSHOCK_BUTTON_CROSS))
+    {
+        last_button = DUALSHOCK_BUTTON_CROSS;
+        change_mode(mode_menu);
+    }
+}
+
+/**
+ * Drives until it (almost) hits something.
+ *
+ */
+void mode_hunt(void)
+{
+    if (debounce_button())
+    {
+        return;
+    }
+
+    font_draw_text_small(0, 10, "Hunt!", LCD_WHITE, LCD_BLACK, true);
+    lcd_flush();    
+    if (dualshock_read_button(DUALSHOCK_BUTTON_CROSS))
+    {
+        last_button = DUALSHOCK_BUTTON_CROSS;
         change_mode(mode_menu);
     }
 }
@@ -161,14 +240,43 @@ bool select_mode(
     else if (p_menu_item == &top_menu_items[1])
     {
         /* Spin mode */
-        change_mode(mode_spin);
+        change_mode(mode_follow);
+    }
+    else if (p_menu_item == &top_menu_items[2])
+    {
+        /* Spin mode */
+        change_mode(mode_hunt);
+    }
+    else if (p_menu_item == &top_menu_items[3])
+    {
+        /* Spin mode */
+        change_mode(mode_turn);
     }
     else
     {
         /* Go back to menu? */
+        printf("Unknown pointer %p\r\n", p_menu_item);
         change_mode(mode_menu);
         retval = true;
     }
+    return retval;
+}
+
+static bool debounce_button(void)
+{
+    bool retval = false;
+    if (last_button != DUALSHOCK_NUM_BUTTONS)
+    {
+        if (dualshock_read_button(last_button))
+        {
+            /* Button still down .. do nothing */
+            retval = true;
+        }
+        else
+        {
+            last_button = DUALSHOCK_NUM_BUTTONS;
+        }
+    }    
     return retval;
 }
 

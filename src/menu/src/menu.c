@@ -99,13 +99,20 @@ void menu_keypress(enum menu_keypress_t keypress)
     bool blank_required = false;
     const struct menu_t *p_menu = menu_levels[current_level];
     /* All menus have one more item than actually specified - the 'Back'
-     * menu item */
+     * menu item, unless it's hidden */
     switch(keypress)
     {
     case MENU_KEYPRESS_UP:
         if (current_item == 0)
         {
-            current_item = p_menu->num_items;
+            if (p_menu->hide_back)
+            {
+                current_item = p_menu->num_items - 1;
+            }
+            else
+            {
+                current_item = p_menu->num_items;
+            }
         }
         else
         {
@@ -113,14 +120,29 @@ void menu_keypress(enum menu_keypress_t keypress)
         }
         break;
     case MENU_KEYPRESS_DOWN:
-        if (current_item == p_menu->num_items)
+        if (p_menu->hide_back)
         {
-            /* Wrap to top */
-            current_item = 0;
+            if (current_item == (p_menu->num_items-1))
+            {
+                /* Wrap to top */
+                current_item = 0;
+            }        
+            else
+            {
+                current_item += 1;
+            }
         }
         else
         {
-            current_item += 1;
+            if (current_item == p_menu->num_items)
+            {
+                /* Wrap to top */
+                current_item = 0;
+            }        
+            else
+            {
+                current_item += 1;
+            }
         }
         break;
     case MENU_KEYPRESS_ENTER:
@@ -148,7 +170,7 @@ void menu_redraw(bool blank_screen)
     }
     font_draw_text_small(MENU_INSET, y, p_menu->p_title, TEXT_COLOUR, TEXT_BACKGROUND, false);
     lcd_paint_fill_rectangle(TEXT_COLOUR, LCD_FIRST_COLUMN, LCD_LAST_COLUMN, LINE_POS, LINE_POS);
-    y += ROW_HEIGHT;
+    y += ROW_HEIGHT+1;
     for(size_t draw_item = 0; draw_item < p_menu->num_items; draw_item++)
     {
         const struct menu_item_t *p_menu_item = &(p_menu->p_menu_items[draw_item]);
@@ -163,14 +185,17 @@ void menu_redraw(bool blank_screen)
         }
         y += ROW_HEIGHT;
     }
-    PRINTF("%c Back\n", (p_menu->num_items == current_item) ? '*' : ' ');
-    if (p_menu->num_items == current_item)
+    if (!p_menu->hide_back)
     {
-        font_draw_text_small(MENU_INSET, y, "Back", TEXT_BACKGROUND, TEXT_COLOUR, false);
-    }
-    else
-    {
-        font_draw_text_small(MENU_INSET, y, "Back", TEXT_COLOUR, TEXT_BACKGROUND, false);
+        PRINTF("%c Back\n", (p_menu->num_items == current_item) ? '*' : ' ');
+        if (p_menu->num_items == current_item)
+        {
+            font_draw_text_small(MENU_INSET, y, "Back", TEXT_BACKGROUND, TEXT_COLOUR, false);
+        }
+        else
+        {
+            font_draw_text_small(MENU_INSET, y, "Back", TEXT_COLOUR, TEXT_BACKGROUND, false);
+        }
     }
     lcd_flush();
 }
@@ -216,7 +241,7 @@ static bool handle_enter(void)
             break;
         }
     }
-    else
+    else if (!p_menu->hide_back)
     {
         /* 'Back' was selected */
         if (current_level)

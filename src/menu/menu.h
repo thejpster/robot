@@ -85,6 +85,7 @@ struct menu_t {
     /* Function called when menu closed. */
     menu_action_t p_back;
     const struct menu_item_t* p_menu_items;
+    bool hide_back;
 };
 
 /**************************************************

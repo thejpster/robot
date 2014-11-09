@@ -73,13 +73,24 @@ extern void mode_remote_control(void);
 
 
 /**
- * Slowly rotates in a circle.
- *
- * A place holder for other modes.
+ * Does a three point turn.
  *
  */
-extern void mode_spin(void);
+extern void mode_turn(void);
 
+
+/**
+ * Follows a line.
+ *
+ */
+extern void mode_follow(void);
+
+
+/**
+ * Drives until it (almost) hits something.
+ *
+ */
+extern void mode_hunt(void);
 
 #ifdef __cplusplus
 }
