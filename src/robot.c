@@ -38,7 +38,8 @@
 #include <font/font.h>
 #include <gpio/gpio.h>
 #include <lcd/lcd.h>
-#include <menu/menu_pwrs.h>
+
+#include "modes.h"
 
 /**************************************************
 * Defines
@@ -123,7 +124,6 @@ int main(int argc, char **argv)
             .tv_usec = (1000 * 1000) / LOOPS_PER_SECOND
         };
         struct timeval loop_delay = delay_master;
-        //menu_pwrs_init();
         bool led_state = 1;
         gpio_io_pin_t led = GPIO_MAKE_IO_PIN(GPIO_PORT_A, 18);
         gpio_make_output(led, 0);
@@ -132,39 +132,7 @@ int main(int argc, char **argv)
             dualshock_read_or_timeout(&loop_delay);
             if (loop_delay.tv_sec == 0 && loop_delay.tv_usec == 0)
             {
-                #if 0
-                printf("DUALSHOCK_AXIS_LX = %d\n", dualshock_read_axis(DUALSHOCK_AXIS_LX));
-                printf("DUALSHOCK_AXIS_LY = %d\n", dualshock_read_axis(DUALSHOCK_AXIS_LY));
-                printf("DUALSHOCK_AXIS_RX = %d\n", dualshock_read_axis(DUALSHOCK_AXIS_RX));
-                printf("DUALSHOCK_AXIS_RY = %d\n", dualshock_read_axis(DUALSHOCK_AXIS_RY));
-                printf("DUALSHOCK_AXIS_L1 = %d\n", dualshock_read_axis(DUALSHOCK_AXIS_L1));
-                printf("DUALSHOCK_AXIS_L2 = %d\n", dualshock_read_axis(DUALSHOCK_AXIS_L2));
-                printf("DUALSHOCK_AXIS_R1 = %d\n", dualshock_read_axis(DUALSHOCK_AXIS_R1));
-                printf("DUALSHOCK_AXIS_R2 = %d\n", dualshock_read_axis(DUALSHOCK_AXIS_R2));
-                printf("DUALSHOCK_BUTTON_SQUARE = %s\n", dualshock_read_button(DUALSHOCK_BUTTON_SQUARE) ? "pressed" : "not-pressed");
-                printf("DUALSHOCK_BUTTON_CIRCLE = %s\n", dualshock_read_button(DUALSHOCK_BUTTON_CIRCLE) ? "pressed" : "not-pressed");
-                printf("DUALSHOCK_BUTTON_TRIANGLE = %s\n", dualshock_read_button(DUALSHOCK_BUTTON_TRIANGLE) ? "pressed" : "not-pressed");
-                printf("DUALSHOCK_BUTTON_CROSS = %s\n", dualshock_read_button(DUALSHOCK_BUTTON_CROSS) ? "pressed" : "not-pressed");
-                printf("DUALSHOCK_BUTTON_PS = %s\n", dualshock_read_button(DUALSHOCK_BUTTON_PS) ? "pressed" : "not-pressed");
-                printf("DUALSHOCK_BUTTON_START = %s\n", dualshock_read_button(DUALSHOCK_BUTTON_START) ? "pressed" : "not-pressed");
-                printf("DUALSHOCK_BUTTON_SELECT = %s\n", dualshock_read_button(DUALSHOCK_BUTTON_SELECT) ? "pressed" : "not-pressed");
-                printf("DUALSHOCK_BUTTON_LEFTSTICK = %s\n", dualshock_read_button(DUALSHOCK_BUTTON_LEFTSTICK) ? "pressed" : "not-pressed");
-                printf("DUALSHOCK_BUTTON_RIGHTSTICK = %s\n", dualshock_read_button(DUALSHOCK_BUTTON_RIGHTSTICK) ? "pressed" : "not-pressed");
-                printf("DUALSHOCK_BUTTON_UP = %s\n", dualshock_read_button(DUALSHOCK_BUTTON_UP) ? "pressed" : "not-pressed");
-                printf("DUALSHOCK_BUTTON_DOWN = %s\n", dualshock_read_button(DUALSHOCK_BUTTON_DOWN) ? "pressed" : "not-pressed");
-                printf("DUALSHOCK_BUTTON_LEFT = %s\n", dualshock_read_button(DUALSHOCK_BUTTON_LEFT) ? "pressed" : "not-pressed");
-                printf("DUALSHOCK_BUTTON_RIGHT = %s\n", dualshock_read_button(DUALSHOCK_BUTTON_RIGHT) ? "pressed" : "not-pressed");
-                printf("DUALSHOCK_BUTTON_L1 = %s\n", dualshock_read_button(DUALSHOCK_BUTTON_L1) ? "pressed" : "not-pressed");
-                printf("DUALSHOCK_BUTTON_L2 = %s\n", dualshock_read_button(DUALSHOCK_BUTTON_L2) ? "pressed" : "not-pressed");
-                printf("DUALSHOCK_BUTTON_R1 = %s\n", dualshock_read_button(DUALSHOCK_BUTTON_R1) ? "pressed" : "not-pressed");
-                printf("DUALSHOCK_BUTTON_R2 = %s\n", dualshock_read_button(DUALSHOCK_BUTTON_R2) ? "pressed" : "not-pressed");
-                #endif
-                char msg[14];
-                sprintf(msg, "L:%05d ", dualshock_read_axis(DUALSHOCK_AXIS_LY));
-                font_draw_text_small(0, 0, msg, LCD_WHITE, LCD_BLACK, true);
-                sprintf(msg, "R:%05d ", dualshock_read_axis(DUALSHOCK_AXIS_RY));
-                font_draw_text_small(0, 10, msg, LCD_WHITE, LCD_BLACK, true);
-                lcd_flush();
+                mode_current();
                 gpio_set_output(led, led_state);
                 led_state = !led_state;
                 loop_delay = delay_master;
