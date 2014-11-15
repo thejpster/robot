@@ -330,7 +330,12 @@ void lcd_paint_mono_rectangle(
     {
         for (lcd_col_t x = x1; x <= x2; x++)
         {
-            if (pixel & mask)
+            bool pixel_set = (pixel & mask);
+            if (bg != LCD_BLACK) 
+            {
+                pixel_set = !pixel_set;
+            }
+            if (pixel_set)
             {
                 SET_PIXEL(x, y);
             }
