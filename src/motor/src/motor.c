@@ -219,6 +219,10 @@ enum motor_status_t motor_control(
             stop = true;
             speed = 1;
         }
+        else
+        {
+            stop = false;
+        }
 
         if ((motor == MOTOR_LEFT) || (motor == MOTOR_BOTH))
         {
@@ -306,6 +310,10 @@ extern enum motor_status_t motor_control_pair(
             left.stop = true;
             left.speed = 1;
         }
+        else
+        {
+            left.stop = false;
+        }
 
         if (rspeed >= 0)
         {
@@ -326,6 +334,10 @@ extern enum motor_status_t motor_control_pair(
         {
             right.stop = true;
             right.speed = 1;
+        }
+        else
+        {
+            right.stop = false;
         }
 
         printf("Set L=%c%u %s\r\n",

@@ -38,6 +38,7 @@
 #include <font/font.h>
 #include <gpio/gpio.h>
 #include <lcd/lcd.h>
+#include <motor/motor.h>
 
 #include "modes.h"
 
@@ -115,6 +116,15 @@ int main(int argc, char **argv)
     if (retval == 0)
     {
         retval = lcd_init(sz_lcddev);
+    }
+
+    if (retval == 0)
+    {
+        enum motor_status_t st = motor_init();
+        if (st != MOTOR_STATUS_OK)
+        {
+            retval = -st;
+        }
     }
 
     if (retval == 0)
