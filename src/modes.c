@@ -30,6 +30,8 @@
 #include "menu/menu.h"
 #include "font/font.h"
 #include "lcd/lcd.h"
+#include "motor/motor.h"
+
 #include "modes.h"
 
 /**************************************************
@@ -147,6 +149,17 @@ void mode_remote_control(void)
     sprintf(msg, "B:%05d ", dualshock_read_axis(DUALSHOCK_AXIS_R2));
     font_draw_text_small(0, 20, msg, LCD_WHITE, LCD_BLACK, true);
     lcd_flush();    
+
+    enum motor_status_t status = motor_control_pair(
+        dualshock_read_axis(DUALSHOCK_AXIS_LY),
+        1000,
+        dualshock_read_axis(DUALSHOCK_AXIS_RY),
+        1000
+    );
+    if (status != MOTOR_STATUS_OK)
+    {
+        printf("Error writing to serial port: %u\r\n", status);
+    }
 
     if (dualshock_read_button(DUALSHOCK_BUTTON_CROSS))
     {

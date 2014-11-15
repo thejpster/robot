@@ -52,6 +52,8 @@ extern "C" {
 enum motor_status_t
 {
     MOTOR_STATUS_OK,
+    MOTOR_STATUS_NO_DEVICE,
+    MOTOR_STATUS_SERIAL_ERROR,
     MOTOR_STATUS_NO_RESPONSE
 };
 
@@ -63,7 +65,9 @@ enum motor_t
 };
 
 /* Positive is forwards, negative is reverse */
-typedef int16_t motor_speed_t;
+/* Valid range is -32768..32767 */
+/* Outside of this is clipped */
+typedef int motor_speed_t;
 
 /* Must be greater than zero. */
 typedef uint16_t motor_step_count_t;
@@ -129,6 +133,24 @@ extern enum motor_status_t motor_control(
     enum motor_t motor,
     motor_speed_t speed,
     motor_step_count_t step_count
+);
+
+/**
+ * Control the motor(s)
+ *
+ * See @motor_control
+ * 
+ * @param[in] lspeed The left motor speed. +ve is forwards, -ve is reverse.
+ * @param[in] lsteps The number of steps to take before stopping.
+ * @param[in] rspeed The right motor speed. +ve is forwards, -ve is reverse.
+ * @param[in] rsteps The number of steps to take before stopping.
+ * @return An error code
+ */
+extern enum motor_status_t motor_control_pair(
+    motor_speed_t lspeed,
+    motor_step_count_t lstep_count,
+    motor_speed_t rspeed,
+    motor_step_count_t rstep_count
 );
 
 #ifdef __cplusplus
