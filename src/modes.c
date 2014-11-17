@@ -181,8 +181,8 @@ void mode_remote_control(void)
 
     /* max input is +/- 32767 */
     /* max output is +/- 255 */
-    left = (left / (128*4)) * boost;
-    right = (right / (128*4)) * boost;
+    left = (left / (127*4)) * boost;
+    right = (right / (127*4)) * boost;
 
     sprintf(msg, "L:%c%03d", (left < 0) ? '-' : '+', abs(left));
     font_draw_text_small(0, 0, msg, LCD_WHITE, LCD_BLACK, true);
@@ -193,9 +193,9 @@ void mode_remote_control(void)
     lcd_flush();
 
     enum motor_status_t status = motor_control_pair(
-        dualshock_read_axis(DUALSHOCK_AXIS_LY),
+        left,
         1000,
-        dualshock_read_axis(DUALSHOCK_AXIS_RY),
+        right,
         1000
     );
     if (status != MOTOR_STATUS_OK)

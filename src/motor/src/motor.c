@@ -76,11 +76,13 @@ struct motor_settings_t
 **************************************************/
 
 static void build_message(
-    const struct motor_settings_t* p_left,
-    const struct motor_settings_t* p_right,
-    uint8_t* p_message
+    const struct motor_settings_t *p_left,
+    const struct motor_settings_t *p_right,
+    uint8_t *p_message
 );
-static uint8_t calc_checksum(const uint8_t* p_message);
+static uint8_t calc_checksum(const uint8_t *p_message);
+
+static void set_motor(int speed, struct motor_settings_t *p_motor);
 
 /**************************************************
 * Public Data
@@ -94,13 +96,15 @@ static uint8_t calc_checksum(const uint8_t* p_message);
 
 static int fd = -1;
 
-static struct motor_settings_t left = {
+static struct motor_settings_t left =
+{
     .forward = true,
     .stop = true,
     .speed = 1
 };
 
-static struct motor_settings_t right = {
+static struct motor_settings_t right =
+{
     .forward = true,
     .stop = true,
     .speed = 1
@@ -126,7 +130,7 @@ static struct motor_settings_t right = {
  * @return An error code
  */
 enum motor_status_t motor_init(
-    const char* sz_serial_port
+    const char *sz_serial_port
 )
 {
     struct termios newtio;
@@ -198,55 +202,28 @@ enum motor_status_t motor_control(
     if (fd >= 0)
     {
         ssize_t written;
+        struct motor_settings_t temp;
         uint8_t message[MESSAGE_LEN];
-        bool forward;
-        bool stop;
-        if (speed >= 0)
-        {
-            forward = true;
-        }
-        else
-        {
-            forward = false;
-            speed = abs(speed);                
-        }
 
-        if (speed > 255)
-        {
-            speed = 255;
-        }
-
-        if (speed == 0)
-        {
-            stop = true;
-            speed = 1;
-        }
-        else
-        {
-            stop = false;
-        }
+        set_motor(speed, &temp);
 
         if ((motor == MOTOR_LEFT) || (motor == MOTOR_BOTH))
         {
-            left.stop = stop;
-            left.forward = forward;
-            left.speed = speed;
+            left = temp;
             printf("Set L=%c%u %s\r\n",
-                left.forward ? '+' : '-',
-                left.speed,
-                left.stop ? "Stop" : "Run"
-                );
+                   left.forward ? '+' : '-',
+                   left.speed,
+                   left.stop ? "Stop" : "Run"
+                  );
         }
         if ((motor == MOTOR_RIGHT) || (motor == MOTOR_BOTH))
         {
-            right.stop = stop;
-            right.forward = forward;
-            right.speed = speed;
+            right = temp;
             printf("Set L=%c%u %s\r\n",
-                right.forward ? '+' : '-',
-                right.speed,
-                right.stop ? "Stop" : "Run"
-                );
+                   right.forward ? '+' : '-',
+                   right.speed,
+                   right.stop ? "Stop" : "Run"
+                  );
         }
 
         build_message(&left, &right, message);
@@ -272,7 +249,7 @@ enum motor_status_t motor_control(
  * Control the motor(s)
  *
  * See @motor_control
- * 
+ *
  * @param[in] lspeed The left motor speed. +ve is forwards, -ve is reverse.
  * @param[in] lsteps The number of steps to take before stopping.
  * @param[in] rspeed The right motor speed. +ve is forwards, -ve is reverse.
@@ -292,66 +269,19 @@ extern enum motor_status_t motor_control_pair(
         ssize_t written;
         uint8_t message[MESSAGE_LEN];
 
-        if (lspeed >= 0)
-        {
-            left.forward = true;
-        }
-        else
-        {
-            left.forward = false;
-            lspeed = abs(lspeed);                
-        }
-        lspeed = (lspeed * 256) / 32768; 
-        if (lspeed > 255)
-        {
-            lspeed = 255;
-        }
-        left.speed = lspeed;
-        if (lspeed == 0)
-        {
-            left.stop = true;
-            left.speed = 1;
-        }
-        else
-        {
-            left.stop = false;
-        }
-
-        if (rspeed >= 0)
-        {
-            right.forward = true;
-        }
-        else
-        {
-            right.forward = false;
-            rspeed = abs(rspeed);                
-        }
-        rspeed = (rspeed * 256) / 32768; 
-        if (rspeed > 255)
-        {
-            rspeed = 255;
-        }
-        right.speed = rspeed;
-        if (rspeed == 0)
-        {
-            right.stop = true;
-            right.speed = 1;
-        }
-        else
-        {
-            right.stop = false;
-        }
+        set_motor(lspeed, &left);
+        set_motor(rspeed, &right);
 
         printf("Set L=%c%u %s\r\n",
-            left.forward ? '+' : '-',
-            left.speed,
-            left.stop ? "Stop" : "Run"
-            );
+               left.forward ? '+' : '-',
+               left.speed,
+               left.stop ? "Stop" : "Run"
+              );
         printf("Set R=%c%u %s\r\n",
-            right.forward ? '+' : '-',
-            right.speed,
-            right.stop ? "Stop" : "Run"
-            );
+               right.forward ? '+' : '-',
+               right.speed,
+               right.stop ? "Stop" : "Run"
+              );
 
         build_message(&left, &right, message);
         written = write(fd, message, sizeof(message));
@@ -383,9 +313,9 @@ extern enum motor_status_t motor_control_pair(
  * @param[out] p_message The constructed message
  */
 static void build_message(
-    const struct motor_settings_t* p_left,
-    const struct motor_settings_t* p_right,
-    uint8_t* p_message
+    const struct motor_settings_t *p_left,
+    const struct motor_settings_t *p_right,
+    uint8_t *p_message
 )
 {
     uint8_t control = 0;
@@ -419,14 +349,53 @@ static void build_message(
  *
  * @return the calculated checksum
  */
-static uint8_t calc_checksum(const uint8_t* p_message)
+static uint8_t calc_checksum(const uint8_t *p_message)
 {
     uint8_t result = 0;
-    for(size_t i = 0; i < (MESSAGE_LEN-1); i++)
+    for (size_t i = 0; i < (MESSAGE_LEN - 1); i++)
     {
         result = result ^ p_message[i];
     }
     return result;
+}
+
+/**
+ * Converts a signed integer speed
+ * into the relevant control bits.
+ *
+ * @param[in] speed -255..255
+ * @param[out] p_motor The motor to change
+ */
+static void set_motor(int speed, struct motor_settings_t *p_motor)
+{
+    if (speed >= 0)
+    {
+        p_motor->forward = true;
+    }
+    else
+    {
+        p_motor->forward = false;
+        speed = abs(speed);
+    }
+
+    if (speed > 255)
+    {
+        p_motor->speed = 255;
+    }
+    else
+    {
+        p_motor->speed = speed;
+    }
+
+    if (p_motor->speed == 0)
+    {
+        p_motor->stop = true;
+        p_motor->speed = 1;
+    }
+    else
+    {
+        p_motor->stop = false;
+    }
 }
 
 /**************************************************
