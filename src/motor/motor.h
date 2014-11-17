@@ -93,7 +93,9 @@ typedef uint16_t motor_step_count_t;
  *
  * @return An error code
  */
-extern enum motor_status_t motor_init(void);
+extern enum motor_status_t motor_init(
+    const char* sz_serial_device
+);
 
 /**
  * Disable the motor controller interface.

@@ -93,7 +93,6 @@ static uint8_t calc_checksum(const uint8_t* p_message);
 **************************************************/
 
 static int fd = -1;
-static char *sz_serial_port = "/dev/ttyACM0";
 
 static struct motor_settings_t left = {
     .forward = true,
@@ -126,7 +125,9 @@ static struct motor_settings_t right = {
  *
  * @return An error code
  */
-enum motor_status_t motor_init(void)
+enum motor_status_t motor_init(
+    const char* sz_serial_port
+)
 {
     struct termios newtio;
     fd = open(sz_serial_port, O_RDWR | O_NOCTTY);
@@ -209,12 +210,13 @@ enum motor_status_t motor_control(
             forward = false;
             speed = abs(speed);                
         }
-        speed = (speed * 256) / 32768; 
+
         if (speed > 255)
         {
             speed = 255;
         }
-        else if (speed == 0)
+
+        if (speed == 0)
         {
             stop = true;
             speed = 1;

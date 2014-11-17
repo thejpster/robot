@@ -78,13 +78,15 @@ static struct option long_options[] =
     {"help",    no_argument,       0, 'h'},
     {"jsdev",   required_argument, 0, 'j'},
     {"lcd",     required_argument, 0, 'l'},
+    {"serdev",   required_argument, 0, 's'},
     { 0 }
 };
 
-static const char *short_options = "vhj:l:";
+static const char *short_options = "vhj:l:s:";
 
-static char *sz_jsdev = "/dev/input/js0";
-static char *sz_lcddev = "/dev/spidev0.0";
+static const char *sz_jsdev = "/dev/input/js0";
+static const char *sz_lcddev = "/dev/spidev0.0";
+static const char* sz_serdev = "/dev/ttyAMA0";
 
 /**************************************************
 * Public Functions
@@ -110,17 +112,20 @@ int main(int argc, char **argv)
     {
         printf("Verbose mode is %s\n", verbose_flag ? "on" : "off");
 
+        printf("Init Joystick...\r\n");
         retval = dualshock_init(sz_jsdev);
     }
 
     if (retval == 0)
     {
+        printf("OK\r\nInit LCD...\r\n");
         retval = lcd_init(sz_lcddev);
     }
 
     if (retval == 0)
     {
-        enum motor_status_t st = motor_init();
+        printf("OK\r\nInit Motor...\r\n");
+        enum motor_status_t st = motor_init(sz_serdev);
         if (st != MOTOR_STATUS_OK)
         {
             retval = -st;
@@ -200,6 +205,10 @@ static int process_arguments(int argc, char** argv)
             sz_lcddev = optarg;
             break;
 
+        case 's':
+            sz_serdev = optarg;
+            break;
+
         case 'h':
             print_help();
             retval = 1;
@@ -229,7 +238,9 @@ static void print_help(void)
     fprintf(stderr, "\n");
     fprintf(stderr, "    --jsdev / -j <device>  - Specifies the /dev/event/foo device for the joystick\n");
     fprintf(stderr, "\n");
-    fprintf(stderr, "    --lcddev / -l <device> - Specifies the /dev/spidev0.0 device for the LCD\n");
+    fprintf(stderr, "    --lcddev / -l <device> - Specifies the /dev/spidevX.X device for the LCD\n");
+    fprintf(stderr, "\n");
+    fprintf(stderr, "    --serdev / -s <device> - Specifies the /dev/ttyXX device for the motor controller\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "    --verbose / -v         - Enables more logging\n");
     fprintf(stderr, "\n");

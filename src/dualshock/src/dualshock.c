@@ -235,16 +235,16 @@ static void process_event(const struct event_data_t *p_event)
         switch (idx)
         {
         case EVENT_STICK_IDX_LX:
-            js_state.lx = p_event->value;
+            js_state.lx = -p_event->value;
             break;
         case EVENT_STICK_IDX_LY:
-            js_state.ly = p_event->value;
+            js_state.ly = -p_event->value;
             break;
         case EVENT_STICK_IDX_RX:
-            js_state.rx = p_event->value;
+            js_state.rx = -p_event->value;
             break;
         case EVENT_STICK_IDX_RY:
-            js_state.ry = p_event->value;
+            js_state.ry = -p_event->value;
             break;
         case EVENT_STICK_IDX_L2:
             js_state.l2 = p_event->value + 32767;

@@ -17,13 +17,29 @@
 * You should have received a copy of the GNU General Public License
 * along with PWRS.  If not, see <http://www.gnu.org/licenses/>.
 *
-* Extra notes on this module go here.
+* This is the mode management module. Modes roughly align
+* with the various challenges the robot has to undertake.
+*
+* These are:
+*
+*   Remote control challenges (all in one mode):
+*   * Robot golf (moving a ball in to a goal)
+*   * Sumo (shoving another robot off the pitch)
+*   * Obstacle Course (remote control around a course)
+*   * Straight Line Speed Test (drive fast in a straight line)
+*
+*   Autonomous challenges:
+*   * Line following (following a black line course autonomously)
+*   * Proxmity Alert (drive up to a wall but don't hit it)
+*   * Three Point Turn (back up, turn around and return, autonomously)
 *
 *****************************************************/
 
 /**************************************************
 * Includes
 ***************************************************/
+
+#include <stdlib.h>
 
 #include "util/util.h"
 #include "dualshock/dualshock.h"
@@ -136,19 +152,45 @@ void mode_menu(void)
 void mode_remote_control(void)
 {
     char msg[14];
+    int left, right, boost;
 
     if (debounce_button())
     {
         return;
     }
 
-    sprintf(msg, "L:%05d ", dualshock_read_axis(DUALSHOCK_AXIS_LY));
+    left = dualshock_read_axis(DUALSHOCK_AXIS_LY);
+    right = dualshock_read_axis(DUALSHOCK_AXIS_RY);
+    boost = dualshock_read_axis(DUALSHOCK_AXIS_R2);
+
+    if (boost == 0)
+    {
+        /* We allow 0..63 */
+        boost = 1;
+    }
+    else if ((boost > 10) && (boost <= 65530))
+    {
+        /* We allow 0..127 */
+        boost = 2;
+    }
+    else
+    {
+        /* We allow 0..255 */
+        boost = 4;
+    }
+
+    /* max input is +/- 32767 */
+    /* max output is +/- 255 */
+    left = (left / (128*4)) * boost;
+    right = (right / (128*4)) * boost;
+
+    sprintf(msg, "L:%c%03d", (left < 0) ? '-' : '+', abs(left));
     font_draw_text_small(0, 0, msg, LCD_WHITE, LCD_BLACK, true);
-    sprintf(msg, "R:%05d ", dualshock_read_axis(DUALSHOCK_AXIS_RY));
+    sprintf(msg, "R:%c%03d", (right < 0) ? '-' : '+', abs(right));
     font_draw_text_small(0, 10, msg, LCD_WHITE, LCD_BLACK, true);
-    sprintf(msg, "B:%05d ", dualshock_read_axis(DUALSHOCK_AXIS_R2));
+    sprintf(msg, "B:%d", boost);
     font_draw_text_small(0, 20, msg, LCD_WHITE, LCD_BLACK, true);
-    lcd_flush();    
+    lcd_flush();
 
     enum motor_status_t status = motor_control_pair(
         dualshock_read_axis(DUALSHOCK_AXIS_LY),
