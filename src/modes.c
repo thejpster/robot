@@ -33,6 +33,12 @@
 *   * Proxmity Alert (drive up to a wall but don't hit it)
 *   * Three Point Turn (back up, turn around and return, autonomously)
 *
+* The motor controller takes speed inputs between zero
+* and 330 ticks per second. We measured 330 ticks/second
+* as the fastest the motor would go (7.2V, no load).
+* The maximum speed is definable here as we don't want to 
+* ask the robot to go faster than it can, otherwise
+* we lose closed-loop feedback control.
 *****************************************************/
 
 /**************************************************
@@ -152,52 +158,68 @@ void mode_menu(void)
 void mode_remote_control(void)
 {
     char msg[14];
-    int left, right, boost;
+    int stick_left, stick_right, trim;
+    int motor_left, motor_right;
 
     if (debounce_button())
     {
         return;
     }
 
-    left = dualshock_read_axis(DUALSHOCK_AXIS_LY);
-    right = dualshock_read_axis(DUALSHOCK_AXIS_RY);
-    boost = dualshock_read_axis(DUALSHOCK_AXIS_R2);
+    stick_left = dualshock_read_axis(DUALSHOCK_AXIS_LY);
+    stick_right = dualshock_read_axis(DUALSHOCK_AXIS_RY);
+    trim = dualshock_read_axis(DUALSHOCK_AXIS_R2);
 
-    if (boost == 0)
+    if (trim == 0)
     {
-        /* We allow 0..63 */
-        boost = 1;
+        /* We allow 0..MOTOR_MAX_SPEED/4 */
+        trim = 4;
     }
-    else if ((boost > 10) && (boost <= 65530))
+    else if ((trim > 10) && (trim <= 65530))
     {
-        /* We allow 0..127 */
-        boost = 2;
+        /* We allow 0..MOTOR_MAX_SPEED/2 */
+        trim = 2;
     }
     else
     {
-        /* We allow 0..255 */
-        boost = 4;
+        /* We allow 0..MOTOR_MAX_SPEED */
+        trim = 1;
     }
 
     /* max input is +/- 32767 */
-    /* max output is +/- 255 */
-    left = (left / (127*4)) * boost;
-    right = (right / (127*4)) * boost;
+    motor_left = (stick_left * MOTOR_MAX_SPEED) / DUALSHOCK_MAX_AXIS_VALUE;
+    motor_right = (stick_right * MOTOR_MAX_SPEED) / DUALSHOCK_MAX_AXIS_VALUE;
 
-    sprintf(msg, "L:%c%03d", (left < 0) ? '-' : '+', abs(left));
+    motor_left = motor_left / trim;
+    motor_right = motor_right / trim;
+
+    sprintf(msg, "L%c%03d %04X", (motor_left < 0) ? '-' : '+', abs(motor_left), (uint16_t) stick_left);
     font_draw_text_small(0, 0, msg, LCD_WHITE, LCD_BLACK, true);
-    sprintf(msg, "R:%c%03d", (right < 0) ? '-' : '+', abs(right));
+    sprintf(msg, "R%c%03d %04X", (motor_right < 0) ? '-' : '+', abs(motor_right), (uint16_t) stick_right);
     font_draw_text_small(0, 10, msg, LCD_WHITE, LCD_BLACK, true);
-    sprintf(msg, "B:%d", boost);
+    sprintf(msg, "Trim:%d", trim);
     font_draw_text_small(0, 20, msg, LCD_WHITE, LCD_BLACK, true);
     lcd_flush();
 
-    enum motor_status_t status = motor_control_pair(
-        left,
-        1000,
-        right,
-        1000
+    enum motor_status_t status;
+
+    status = motor_control(
+        MOTOR_LEFT,
+        motor_left,
+        motor_left
     );
+
+    if (status != MOTOR_STATUS_OK)
+    {
+        printf("Error writing to serial port: %u\r\n", status);
+    }
+
+    status = motor_control(
+        MOTOR_RIGHT,
+        motor_right,
+        motor_right
+    );
+
     if (status != MOTOR_STATUS_OK)
     {
         printf("Error writing to serial port: %u\r\n", status);

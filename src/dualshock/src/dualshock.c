@@ -232,31 +232,34 @@ static void process_event(const struct event_data_t *p_event)
     if ((p_event->type == EVENT_TYPE_STICK) || (p_event->type == EVENT_TYPE_INITSTICK))
     {
         enum event_stick_idx_t idx = p_event->idx;
+        int value = p_event->value;
         switch (idx)
         {
+        /* The sticks appear backwards to how you would expect */
         case EVENT_STICK_IDX_LX:
-            js_state.lx = -p_event->value;
+            js_state.lx = -value;
             break;
         case EVENT_STICK_IDX_LY:
-            js_state.ly = -p_event->value;
+            js_state.ly = -value;
             break;
         case EVENT_STICK_IDX_RX:
-            js_state.rx = -p_event->value;
+            js_state.rx = -value;
             break;
         case EVENT_STICK_IDX_RY:
-            js_state.ry = -p_event->value;
+            js_state.ry = -value;
             break;
+        /* We want shoulder buttons as unsigned values */
         case EVENT_STICK_IDX_L2:
-            js_state.l2 = p_event->value + 32767;
+            js_state.l2 = value + DUALSHOCK_MAX_AXIS_VALUE;
             break;
         case EVENT_STICK_IDX_R2:
-            js_state.r2 = p_event->value + 32767;
+            js_state.r2 = value + DUALSHOCK_MAX_AXIS_VALUE;
             break;
         case EVENT_STICK_IDX_L1:
-            js_state.l1 = p_event->value + 32767;
+            js_state.l1 = value + DUALSHOCK_MAX_AXIS_VALUE;
             break;
         case EVENT_STICK_IDX_R1:
-            js_state.r1 = p_event->value + 32767;
+            js_state.r1 = value + DUALSHOCK_MAX_AXIS_VALUE;
             break;
         default:
             /* Ignore unwanted events */

@@ -43,7 +43,7 @@ extern "C" {
 * Public Defines
 ***************************************************/
 
-/* None */
+#define MOTOR_MAX_SPEED 320 
 
 /**************************************************
 * Public Data Types
@@ -60,8 +60,7 @@ enum motor_status_t
 enum motor_t
 {
     MOTOR_LEFT,
-    MOTOR_RIGHT,
-    MOTOR_BOTH
+    MOTOR_RIGHT
 };
 
 /* Positive is forwards, negative is reverse */
@@ -135,24 +134,6 @@ extern enum motor_status_t motor_control(
     enum motor_t motor,
     motor_speed_t speed,
     motor_step_count_t step_count
-);
-
-/**
- * Control the motor(s)
- *
- * See @motor_control
- * 
- * @param[in] lspeed The left motor speed. +ve is forwards, -ve is reverse.
- * @param[in] lsteps The number of steps to take before stopping.
- * @param[in] rspeed The right motor speed. +ve is forwards, -ve is reverse.
- * @param[in] rsteps The number of steps to take before stopping.
- * @return An error code
- */
-extern enum motor_status_t motor_control_pair(
-    motor_speed_t lspeed,
-    motor_step_count_t lstep_count,
-    motor_speed_t rspeed,
-    motor_step_count_t rstep_count
 );
 
 #ifdef __cplusplus

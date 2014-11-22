@@ -44,21 +44,22 @@
 * Defines
 ***************************************************/
 
-#define BAUDRATE B9600
+#define BAUDRATE B115200
 
-#define MESSAGE_HEADER 0x00
-#define MESSAGE_HEADER_OFFSET 0
-#define MESSAGE_CONTROL_OFFSET 1
-#define MESSAGE_LEFT_SPEED_OFFSET 2
-#define MESSAGE_RIGHT_SPEED_OFFSET 3
-#define MESSAGE_CHECKSUM_OFFSET 4
-#define MESSAGE_LEN 5
+#define MESSAGE_HEADER             0xFF
+#define MESSAGE_CONTROL_LHS_FWD    0x00
+#define MESSAGE_CONTROL_LHS_BACK   0x01
+#define MESSAGE_CONTROL_RHS_FWD    0x02
+#define MESSAGE_CONTROL_RHS_BACK   0x03
+#define MESSAGE_CONTROL_ACK        0x04
+#define MESSAGE_CONTROL_STALL      0x05
 
-#define CONTROL_LEFT_DIR  (1 << 0)
-#define CONTROL_RIGHT_DIR  (1 << 1)
-#define CONTROL_LEFT_STOP (1 << 2)
-#define CONTROL_RIGHT_STOP (1 << 3)
-#define CONTROL_MODE (1 << 4)
+#define MESSAGE_HEADER_OFFSET      0
+#define MESSAGE_CONTROL_OFFSET     1
+#define MESSAGE_SPEED_OFFSET       2
+#define MESSAGE_COUNT_OFFSET       4
+#define MESSAGE_CHECKSUM_OFFSET    5
+#define MESSAGE_LEN                6
 
 /**************************************************
 * Data Types
@@ -67,8 +68,8 @@
 struct motor_settings_t
 {
     bool forward;
-    bool stop;
-    uint8_t speed;
+    uint16_t speed;
+    uint16_t tick_count;
 };
 
 /**************************************************
@@ -76,13 +77,15 @@ struct motor_settings_t
 **************************************************/
 
 static void build_message(
-    const struct motor_settings_t *p_left,
-    const struct motor_settings_t *p_right,
+    enum motor_t motor,
+    const struct motor_settings_t *p_settings,
     uint8_t *p_message
 );
 static uint8_t calc_checksum(const uint8_t *p_message);
 
-static void set_motor(int speed, struct motor_settings_t *p_motor);
+static void set_motor(int speed, unsigned int tick_count, struct motor_settings_t *p_motor);
+
+static enum motor_status_t send_message(const uint8_t *p_message);
 
 /**************************************************
 * Public Data
@@ -99,15 +102,13 @@ static int fd = -1;
 static struct motor_settings_t left =
 {
     .forward = true,
-    .stop = true,
-    .speed = 1
+    .speed = 0
 };
 
 static struct motor_settings_t right =
 {
     .forward = true,
-    .stop = true,
-    .speed = 1
+    .speed = 0
 };
 
 /* @todo need to cache motor speeds so we
@@ -178,8 +179,9 @@ void motor_close(void)
  * automatically come to a stop after a short while) or b)
  * dead reckoning your way around a course.
  *
- * A 'step' is one transition on the quadrature encoder. The
- * amount of distance the robot covers is TBD.
+ * A 'step' is one transition on the quadrature encoder. 320
+ * steps is around one turn of the robot's wheel, or around
+ * 180 mm.
  *
  * A call to this function supercedes any previous commands
  * received for the specified motor(s). i.e. if you ask
@@ -199,108 +201,36 @@ enum motor_status_t motor_control(
 )
 {
     enum motor_status_t result;
-    if (fd >= 0)
+    struct motor_settings_t temp;
+    uint8_t message[MESSAGE_LEN];
+
+    /* Allow 1 second of running */
+    set_motor(speed, speed, &temp);
+
+    if (motor == MOTOR_LEFT)
     {
-        ssize_t written;
-        struct motor_settings_t temp;
-        uint8_t message[MESSAGE_LEN];
-
-        set_motor(speed, &temp);
-
-        if ((motor == MOTOR_LEFT) || (motor == MOTOR_BOTH))
-        {
-            left = temp;
-            printf("Set L=%c%u %s\r\n",
-                   left.forward ? '+' : '-',
-                   left.speed,
-                   left.stop ? "Stop" : "Run"
-                  );
-        }
-        if ((motor == MOTOR_RIGHT) || (motor == MOTOR_BOTH))
-        {
-            right = temp;
-            printf("Set L=%c%u %s\r\n",
-                   right.forward ? '+' : '-',
-                   right.speed,
-                   right.stop ? "Stop" : "Run"
-                  );
-        }
-
-        build_message(&left, &right, message);
-        written = write(fd, message, sizeof(message));
-        if (written == sizeof(message))
-        {
-            result = MOTOR_STATUS_OK;
-        }
-        else
-        {
-            result = MOTOR_STATUS_SERIAL_ERROR;
-        }
-
-    }
-    else
-    {
-        result = MOTOR_STATUS_NO_DEVICE;
-    }
-    return result;
-}
-
-/**
- * Control the motor(s)
- *
- * See @motor_control
- *
- * @param[in] lspeed The left motor speed. +ve is forwards, -ve is reverse.
- * @param[in] lsteps The number of steps to take before stopping.
- * @param[in] rspeed The right motor speed. +ve is forwards, -ve is reverse.
- * @param[in] rsteps The number of steps to take before stopping.
- * @return An error code
- */
-extern enum motor_status_t motor_control_pair(
-    motor_speed_t lspeed,
-    motor_step_count_t lstep_count,
-    motor_speed_t rspeed,
-    motor_step_count_t rstep_count
-)
-{
-    enum motor_status_t result;
-    if (fd >= 0)
-    {
-        ssize_t written;
-        uint8_t message[MESSAGE_LEN];
-
-        set_motor(lspeed, &left);
-        set_motor(rspeed, &right);
-
-        printf("Set L=%c%u %s\r\n",
+        left = temp;
+        printf("Set L=%c%u\r\n",
                left.forward ? '+' : '-',
-               left.speed,
-               left.stop ? "Stop" : "Run"
+               left.speed
               );
-        printf("Set R=%c%u %s\r\n",
-               right.forward ? '+' : '-',
-               right.speed,
-               right.stop ? "Stop" : "Run"
-              );
-
-        build_message(&left, &right, message);
-        written = write(fd, message, sizeof(message));
-        if (written == sizeof(message))
-        {
-            result = MOTOR_STATUS_OK;
-        }
-        else
-        {
-            result = MOTOR_STATUS_SERIAL_ERROR;
-        }
-
+        build_message(MOTOR_LEFT, &left, message);
+        result = send_message(message);
     }
     else
     {
-        result = MOTOR_STATUS_NO_DEVICE;
+        right = temp;
+        printf("Set R=%c%u\r\n",
+               right.forward ? '+' : '-',
+               right.speed
+              );
+        build_message(MOTOR_RIGHT, &right, message);
+        result = send_message(message);
     }
+
     return result;
 }
+
 /**************************************************
 * Private Functions
 ***************************************************/
@@ -308,37 +238,37 @@ extern enum motor_status_t motor_control_pair(
 /**
  * Build a message to go over the serial connection.
  *
- * @param[in] p_left Settings for the left motor
- * @param[in] p_right Settings for the right motor
+ * @param[in] motor MOTOR_LEFT or MOTOR_RIGHT
+ * @param[in] p_motor Settings for the motor
  * @param[out] p_message The constructed message
  */
 static void build_message(
-    const struct motor_settings_t *p_left,
-    const struct motor_settings_t *p_right,
+    enum motor_t motor,
+    const struct motor_settings_t *p_motor,
     uint8_t *p_message
 )
 {
     uint8_t control = 0;
     p_message[MESSAGE_HEADER_OFFSET] = MESSAGE_HEADER;
-    if (p_left->stop)
+    if (motor == MOTOR_LEFT)
     {
-        control |= CONTROL_LEFT_STOP;
+        control = p_motor->forward ? MESSAGE_CONTROL_LHS_FWD : MESSAGE_CONTROL_LHS_BACK;
     }
-    if (p_left->forward)
+    else if (motor == MOTOR_RIGHT)
     {
-        control |= CONTROL_LEFT_DIR;
+        control = p_motor->forward ? MESSAGE_CONTROL_RHS_FWD : MESSAGE_CONTROL_LHS_BACK;
     }
-    if (p_right->stop)
+    else
     {
-        control |= CONTROL_RIGHT_STOP;
-    }
-    if (p_right->forward)
-    {
-        control |= CONTROL_RIGHT_DIR;
+        fprintf(stderr, "Invalid motor in build_message\r\n");
+        abort();
     }
 
     p_message[MESSAGE_CONTROL_OFFSET] = control;
-    /* @todo add step_count to the message */
+    p_message[MESSAGE_SPEED_OFFSET] = (p_motor->speed >> 8);
+    p_message[MESSAGE_SPEED_OFFSET + 1] = (p_motor->speed & 0xFF);
+    p_message[MESSAGE_COUNT_OFFSET] = (p_motor->tick_count >> 8);
+    p_message[MESSAGE_COUNT_OFFSET + 1] = (p_motor->tick_count & 0xFF);
     p_message[MESSAGE_CHECKSUM_OFFSET] = calc_checksum(p_message);
 }
 
@@ -352,9 +282,15 @@ static void build_message(
 static uint8_t calc_checksum(const uint8_t *p_message)
 {
     uint8_t result = 0;
-    for (size_t i = 0; i < (MESSAGE_LEN - 1); i++)
+    /* Don't XOR header byte */
+    for (size_t i = 1; i < (MESSAGE_LEN - 1); i++)
     {
         result = result ^ p_message[i];
+    }
+    /* Don't allow checksum to match header byte */
+    if (result == MESSAGE_HEADER)
+    {
+        result = ~result;
     }
     return result;
 }
@@ -363,10 +299,10 @@ static uint8_t calc_checksum(const uint8_t *p_message)
  * Converts a signed integer speed
  * into the relevant control bits.
  *
- * @param[in] speed -255..255
+ * @param[in] speed -MOTOR_MAX_SPEED..+MOTOR_MAX_SPEED
  * @param[out] p_motor The motor to change
  */
-static void set_motor(int speed, struct motor_settings_t *p_motor)
+static void set_motor(int speed, unsigned int tick_count, struct motor_settings_t *p_motor)
 {
     if (speed >= 0)
     {
@@ -378,24 +314,50 @@ static void set_motor(int speed, struct motor_settings_t *p_motor)
         speed = abs(speed);
     }
 
-    if (speed > 255)
+    if (tick_count > (speed * 2))
     {
-        p_motor->speed = 255;
+        /* Max two seconds run time */
+        tick_count = speed * 2;
+    }
+
+    p_motor->tick_count = tick_count;
+
+    if (speed > MOTOR_MAX_SPEED)
+    {
+        p_motor->speed = MOTOR_MAX_SPEED;
     }
     else
     {
         p_motor->speed = speed;
     }
+}
 
-    if (p_motor->speed == 0)
+/**
+ * Writes message to serial port.
+ *
+ * @param[in] p_message MESSAGE_LEN bytes of message
+ * @return success or an error
+ */
+static enum motor_status_t send_message(const uint8_t *p_message)
+{
+    enum motor_status_t result;
+    if (fd >= 0)
     {
-        p_motor->stop = true;
-        p_motor->speed = 1;
+        ssize_t written = write(fd, p_message, MESSAGE_LEN);
+        if (written == MESSAGE_LEN)
+        {
+            result = MOTOR_STATUS_OK;
+        }
+        else
+        {
+            result = MOTOR_STATUS_SERIAL_ERROR;
+        }
     }
     else
     {
-        p_motor->stop = false;
+        result = MOTOR_STATUS_NO_DEVICE;
     }
+    return result;
 }
 
 /**************************************************

@@ -41,7 +41,7 @@ extern "C" {
 * Public Defines
 ***************************************************/
 
-/* None */
+#define DUALSHOCK_MAX_AXIS_VALUE 32767
 
 /**************************************************
 * Public Data Types
