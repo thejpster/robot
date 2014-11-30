@@ -147,6 +147,7 @@ int main(int argc, char **argv)
             dualshock_read_or_timeout(&loop_delay);
             if (loop_delay.tv_sec == 0 && loop_delay.tv_usec == 0)
             {
+                motor_poll();
                 mode_current();
                 gpio_set_output(led, led_state);
                 led_state = !led_state;

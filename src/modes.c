@@ -206,7 +206,7 @@ void mode_remote_control(void)
     status = motor_control(
         MOTOR_LEFT,
         motor_left,
-        motor_left
+        abs(motor_left)
     );
 
     if (status != MOTOR_STATUS_OK)
@@ -217,7 +217,7 @@ void mode_remote_control(void)
     status = motor_control(
         MOTOR_RIGHT,
         motor_right,
-        motor_right
+        abs(motor_right)
     );
 
     if (status != MOTOR_STATUS_OK)
