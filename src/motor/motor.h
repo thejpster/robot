@@ -49,19 +49,20 @@ extern "C" {
 * Public Data Types
 **************************************************/
 
-enum motor_status_t
+typedef enum motor_status_t
 {
     MOTOR_STATUS_OK,
     MOTOR_STATUS_NO_DEVICE,
     MOTOR_STATUS_SERIAL_ERROR,
     MOTOR_STATUS_NO_RESPONSE
-};
+} motor_status_t;
 
-enum motor_t
+typedef enum motor_t
 {
     MOTOR_LEFT,
-    MOTOR_RIGHT
-};
+    MOTOR_RIGHT,
+    MOTOR_BOTH
+} motor_t;
 
 /* Positive is forwards, negative is reverse */
 /* Valid range is -32768..32767 */
@@ -135,6 +136,13 @@ extern enum motor_status_t motor_control(
     motor_speed_t speed,
     motor_step_count_t step_count
 );
+
+/**
+ * Check the motor controller serial port for ACKs and
+ * tick count updates. Call this regularly
+ * otherwise the serial port buffer will fill up.
+ */
+motor_status_t motor_poll(void);
 
 #ifdef __cplusplus
 }
