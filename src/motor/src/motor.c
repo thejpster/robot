@@ -58,8 +58,8 @@
 #define MESSAGE_CONTROL_OFFSET     1
 #define MESSAGE_SPEED_OFFSET       2
 #define MESSAGE_COUNT_OFFSET       4
-#define MESSAGE_CHECKSUM_OFFSET    5
-#define MESSAGE_LEN                6
+#define MESSAGE_CHECKSUM_OFFSET    6
+#define MESSAGE_LEN                7
 
 /**************************************************
 * Data Types
@@ -205,7 +205,7 @@ enum motor_status_t motor_control(
     uint8_t message[MESSAGE_LEN];
 
     /* Allow 1 second of running */
-    set_motor(speed, speed, &temp);
+    set_motor(speed, abs(speed), &temp);
 
     if (motor == MOTOR_LEFT)
     {
@@ -256,7 +256,7 @@ static void build_message(
     }
     else if (motor == MOTOR_RIGHT)
     {
-        control = p_motor->forward ? MESSAGE_CONTROL_RHS_FWD : MESSAGE_CONTROL_LHS_BACK;
+        control = p_motor->forward ? MESSAGE_CONTROL_RHS_FWD : MESSAGE_CONTROL_RHS_BACK;
     }
     else
     {
@@ -344,6 +344,12 @@ static enum motor_status_t send_message(const uint8_t *p_message)
     if (fd >= 0)
     {
         ssize_t written = write(fd, p_message, MESSAGE_LEN);
+        printf("TX: ");
+        for(size_t i = 0; i < MESSAGE_LEN; i++)
+        {
+            printf("%02X ", p_message[i]);
+        }
+        printf("\r\n");
         if (written == MESSAGE_LEN)
         {
             result = MOTOR_STATUS_OK;
