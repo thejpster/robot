@@ -220,7 +220,7 @@ enum motor_status_t motor_control(
     motor_step_count_t step_count
 )
 {
-    enum motor_status_t result;
+    enum motor_status_t result = MOTOR_STATUS_BAD_MOTOR;
     motor_settings_t temp;
     uint8_t message[MESSAGE_LEN];
 
@@ -248,10 +248,6 @@ enum motor_status_t motor_control(
               );
         build_message(MOTOR_RIGHT, &right, message);
         result = send_message(message);
-    }
-    else
-    {
-        printf("Bad motor!\r\n");
     }
 
     return result;

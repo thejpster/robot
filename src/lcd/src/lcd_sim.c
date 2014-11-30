@@ -216,9 +216,17 @@ void lcd_paint_mono_rectangle(
 /* None */
 
 
+/**************************************************
+* Placeholder
+***************************************************/
+
+#else
+
+/* We get warnings if this file is empty. Shut them up. */
+extern void lcd_sim_cant_be_empty(void);
+
 #endif
 
 /**************************************************
 * End of file
 ***************************************************/
-

@@ -332,7 +332,7 @@ bool select_mode(
     else
     {
         /* Go back to menu? */
-        printf("Unknown pointer %p\r\n", p_menu_item);
+        printf("Unknown pointer %p\r\n", (const void*) p_menu_item);
         change_mode(mode_menu);
         retval = true;
     }

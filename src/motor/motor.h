@@ -54,7 +54,8 @@ typedef enum motor_status_t
     MOTOR_STATUS_OK,
     MOTOR_STATUS_NO_DEVICE,
     MOTOR_STATUS_SERIAL_ERROR,
-    MOTOR_STATUS_NO_RESPONSE
+    MOTOR_STATUS_NO_RESPONSE,
+    MOTOR_STATUS_BAD_MOTOR
 } motor_status_t;
 
 typedef enum motor_t
