@@ -43,7 +43,8 @@ extern "C" {
 * Public Defines
 ***************************************************/
 
-/* None */
+#define FONT_MONOSPACE true
+#define FONT_PROPORTIONAL false
 
 /**************************************************
 * Public Data Types
