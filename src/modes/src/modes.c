@@ -54,19 +54,53 @@
 #include "lcd/lcd.h"
 #include "motor/motor.h"
 
-#include "modes.h"
+#include <modes/modes.h>
 
 /**************************************************
 * Defines
 ***************************************************/
 
-/* None */
+/* 
+The route:
++------+-----------------------+------------+
+|      |                       |            |
+|      |                       +-----11-----+
+|      |                       |            |
+|      |                       |      12    |
++------+                       |   10|      |
+|      |                       |     |13    |
+|START 1  2   3   4  5  6  7  8|  9  |      |
+|  25  24  23  22   21   20   19  18 |14    |
++------+                       |     |      |
+|      |                       |   17 15    |
+|      |                       |            |
+|      |                       +----16------+
+|      |                       |            |
++------+-----------------------+------------+
+*/
+
+/* There are 1000 ticks per three wheel rotations */
+/* Wheels are 60mm diameter => ~188mm circumference */
+/* => 1000 mm = ~5.3 wheel turns = ~1773 ticks */
+
+#define MM_TO_TICKS(x) (((x) * 1773) / 1000)
+/* @todo change this! */
+#define TURN_90 (333)
 
 /**************************************************
 * Data Types
 **************************************************/
 
-/* None */
+
+typedef struct movement_t
+{
+    /* Bigger than a motor_step_count_t */
+    uint32_t left_ticks;
+    uint32_t right_ticks;
+    motor_speed_t left_speed;
+    motor_speed_t right_speed;
+} movement_t;
+
 
 /**************************************************
 * Function Prototypes
@@ -110,6 +144,53 @@ static const struct menu_t top_menu =
 };
 
 static enum dualshock_button_t last_button = DUALSHOCK_NUM_BUTTONS;
+
+static struct movement_t movements[] = 
+{
+    { 
+        .left_ticks = MM_TO_TICKS(1640),
+        .right_ticks = MM_TO_TICKS(1640),
+        .left_speed = MOTOR_MAX_SPEED,
+        .right_speed = MOTOR_MAX_SPEED,
+    },
+    { 
+        .left_ticks = MM_TO_TICKS(TURN_90),
+        .right_ticks = MM_TO_TICKS(TURN_90),
+        .left_speed = -MOTOR_MAX_SPEED,
+        .right_speed = MOTOR_MAX_SPEED,
+    },
+    { 
+        .left_ticks = MM_TO_TICKS(900),
+        .right_ticks = MM_TO_TICKS(900),
+        .left_speed = MOTOR_MAX_SPEED,
+        .right_speed = MOTOR_MAX_SPEED,
+    },
+    { 
+        .left_ticks = MM_TO_TICKS(1800),
+        .right_ticks = MM_TO_TICKS(1800),
+        .left_speed = -MOTOR_MAX_SPEED,
+        .right_speed = -MOTOR_MAX_SPEED,
+    },
+    { 
+        .left_ticks = MM_TO_TICKS(900),
+        .right_ticks = MM_TO_TICKS(900),
+        .left_speed = MOTOR_MAX_SPEED,
+        .right_speed = MOTOR_MAX_SPEED,
+    },
+    { 
+        .left_ticks = MM_TO_TICKS(TURN_90),
+        .right_ticks = MM_TO_TICKS(TURN_90),
+        .left_speed = -MOTOR_MAX_SPEED,
+        .right_speed = MOTOR_MAX_SPEED,
+    },
+    { 
+        .left_ticks = MM_TO_TICKS(1640),
+        .right_ticks = MM_TO_TICKS(1640),
+        .left_speed = MOTOR_MAX_SPEED,
+        .right_speed = MOTOR_MAX_SPEED,
+    }
+};
+
 /**************************************************
 * Public Functions
 ***************************************************/

@@ -45,6 +45,6 @@ if ARGUMENTS.get('VERBOSE') != '1':
     env['CCCOMSTR'] = 'Compiling $TARGET'
     env['LINKCOMSTR'] = 'Linking $TARGET'
 
-files = env.Glob('*/src/*.c') + [ 'robot.c', 'modes.c' ]
+files = env.Glob('*/src/*.c') + [ 'robot.c' ]
 
 env.Program('pwrs', files)
