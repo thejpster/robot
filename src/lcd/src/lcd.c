@@ -459,6 +459,15 @@ static void clear_damage(void)
     top_stripe = NUM_STRIPES;
 }
 
+/**************************************************
+* Placeholder
+***************************************************/
+
+#else
+
+/* We get warnings if this file is empty. Shut them up. */
+extern void lcd_cant_be_empty(void);
+
 #endif
 
 /**************************************************
