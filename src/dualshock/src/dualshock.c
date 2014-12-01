@@ -146,6 +146,7 @@ int dualshock_init(const char *sz_jsdev)
     else
     {
         perror("Can't open device");
+        retval = fd;
     }
     return retval;
 }
