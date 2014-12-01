@@ -52,6 +52,14 @@ extern "C" {
 #define MAX(x,y) ((x) > (y) ? (x) : (y))
 #define MIN(x,y) ((x) < (y) ? (x) : (y))
 
+#define BOUNDS_INCREMENT(x, max, min) do { \
+	(x) = (x) + 1; \
+	if ((x) >= (max)) \
+	{ \
+		(x) = (min); \
+	} \
+} while(0) \
+
 /**************************************************
 * Public Data Types
 **************************************************/

@@ -110,14 +110,6 @@ int main(int argc, char **argv)
 
     if (retval == 0)
     {
-        printf("Verbose mode is %s\n", verbose_flag ? "on" : "off");
-
-        printf("Init Joystick...\r\n");
-        retval = dualshock_init(sz_jsdev);
-    }
-
-    if (retval == 0)
-    {
         printf("OK\r\nInit LCD...\r\n");
         retval = lcd_init(sz_lcddev);
     }
@@ -125,12 +117,33 @@ int main(int argc, char **argv)
     if (retval == 0)
     {
         printf("OK\r\nInit Motor...\r\n");
+        lcd_paint_clear_screen();
         enum motor_status_t st = motor_init(sz_serdev);
         if (st != MOTOR_STATUS_OK)
         {
             retval = -st;
         }
     }
+
+    if (retval == 0)
+    {
+        const char spinner[] = { '\\', '|', '/', '-'};
+        size_t i = 0;
+        printf("Verbose mode is %s\n", verbose_flag ? "on" : "off");
+
+        printf("Init Joystick...\r\n");
+        do
+        {
+            char message[10];
+            sprintf(message, "Start pad %c", spinner[i]);
+            BOUNDS_INCREMENT(i, NUMELTS(spinner), 0);
+            font_draw_text_small(2, 20, message, LCD_WHITE, LCD_BLACK, FONT_PROPORTIONAL);
+            retval = dualshock_init(sz_jsdev);
+            sleep(1);
+        } while(retval != 0);
+        printf("Init Joystick done!\r\n");
+    }
+
 
     if (retval == 0)
     {
