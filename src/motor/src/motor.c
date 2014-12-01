@@ -72,6 +72,7 @@ typedef struct motor_settings_t
     bool forward;
     unsigned int speed;
     unsigned int tick_count;
+    unsigned int last_ticks_remaining;
 } motor_settings_t;
 
 typedef struct rx_message_t
@@ -256,6 +257,8 @@ enum motor_status_t motor_control(
 /**
  * Check the motor controller serial port for ACKs and
  * tick count updates.
+ *
+ * @return An error code
  */
 motor_status_t motor_poll(void)
 {
@@ -286,6 +289,30 @@ motor_status_t motor_poll(void)
         result = MOTOR_STATUS_NO_DEVICE;
     }
     return result;
+}
+
+/**
+ * Find out how many ticks are left from the last command.
+ *
+ * @param[in] motor Which motor to read
+ * @return The number of ticks left
+ */
+motor_step_count_t motor_read_steps(
+    enum motor_t motor
+)
+{
+    if (motor == MOTOR_LEFT)
+    {
+        return left.last_ticks_remaining;
+    }
+    else if (motor == MOTOR_RIGHT)
+    {
+        return right.last_ticks_remaining;
+    }
+    else
+    {
+        return 0;
+    }
 }
 
 /**************************************************
@@ -444,9 +471,11 @@ static void process_rx_message(const rx_message_t* p_message)
         break;
     case MESSAGE_CONTROL_LHS_CLICKS:
         printf("LHS clicks = %u\r\n", p_message->ticks_remaining);
+        left.last_ticks_remaining = p_message->ticks_remaining;
         break;
     case MESSAGE_CONTROL_RHS_CLICKS:
         printf("RHS clicks = %u\r\n", p_message->ticks_remaining);
+        right.last_ticks_remaining = p_message->ticks_remaining;
         break;
     }
 }

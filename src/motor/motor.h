@@ -142,8 +142,21 @@ extern enum motor_status_t motor_control(
  * Check the motor controller serial port for ACKs and
  * tick count updates. Call this regularly
  * otherwise the serial port buffer will fill up.
+ *
+ * @return An error code
  */
 motor_status_t motor_poll(void);
+
+
+/**
+ * Find out how many ticks are left from the last command.
+ *
+ * @param[in] motor Which motor to read
+ * @return The number of ticks left
+ */
+motor_step_count_t motor_read_steps(
+    enum motor_t motor
+);
 
 #ifdef __cplusplus
 }
