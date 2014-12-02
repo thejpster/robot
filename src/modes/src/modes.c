@@ -36,7 +36,7 @@
 * The motor controller takes speed inputs between zero
 * and 330 ticks per second. We measured 330 ticks/second
 * as the fastest the motor would go (7.2V, no load).
-* The maximum speed is definable here as we don't want to 
+* The maximum speed is definable here as we don't want to
 * ask the robot to go faster than it can, otherwise
 * we lose closed-loop feedback control.
 *****************************************************/
@@ -60,7 +60,7 @@
 * Defines
 ***************************************************/
 
-/* 
+/*
 The route:
 +------+-----------------------+------------+
 |      |                       |            |
@@ -145,51 +145,209 @@ static const struct menu_t top_menu =
 
 static enum dualshock_button_t last_button = DUALSHOCK_NUM_BUTTONS;
 
-static struct movement_t movements[] = 
+/* Each movement is limited by the protocol to 508 clicks (254 * 2) */
+static struct movement_t movements[] =
 {
-    { 
-        .left_ticks = MM_TO_TICKS(1640),
-        .right_ticks = MM_TO_TICKS(1640),
+    /* 3000 clicks forwards */
+    {
+        .left_ticks = 500,
+        .right_ticks = 500,
         .left_speed = MOTOR_MAX_SPEED,
         .right_speed = MOTOR_MAX_SPEED,
     },
-    { 
-        .left_ticks = MM_TO_TICKS(TURN_90),
-        .right_ticks = MM_TO_TICKS(TURN_90),
+    {
+        .left_ticks = 500,
+        .right_ticks = 500,
+        .left_speed = MOTOR_MAX_SPEED,
+        .right_speed = MOTOR_MAX_SPEED,
+    },
+    {
+        .left_ticks = 500,
+        .right_ticks = 500,
+        .left_speed = MOTOR_MAX_SPEED,
+        .right_speed = MOTOR_MAX_SPEED,
+    },
+    {
+        .left_ticks = 500,
+        .right_ticks = 500,
+        .left_speed = MOTOR_MAX_SPEED,
+        .right_speed = MOTOR_MAX_SPEED,
+    },
+    {
+        .left_ticks = 500,
+        .right_ticks = 500,
+        .left_speed = MOTOR_MAX_SPEED,
+        .right_speed = MOTOR_MAX_SPEED,
+    },
+    {
+        .left_ticks = 500,
+        .right_ticks = 500,
+        .left_speed = MOTOR_MAX_SPEED,
+        .right_speed = MOTOR_MAX_SPEED,
+    },
+
+
+    /* Turning 90 degrees left */
+    {
+        .left_ticks = 320,
+        .right_ticks = 320,
         .left_speed = -MOTOR_MAX_SPEED,
         .right_speed = MOTOR_MAX_SPEED,
     },
-    { 
-        .left_ticks = MM_TO_TICKS(900),
-        .right_ticks = MM_TO_TICKS(900),
+    {
+        .left_ticks = 320,
+        .right_ticks = 320,
+        .left_speed = -MOTOR_MAX_SPEED,
+        .right_speed = MOTOR_MAX_SPEED,
+    },
+
+
+    /* Go 1500 forward */
+    {
+        .left_ticks = 500,
+        .right_ticks = 500,
         .left_speed = MOTOR_MAX_SPEED,
         .right_speed = MOTOR_MAX_SPEED,
     },
-    { 
-        .left_ticks = MM_TO_TICKS(1800),
-        .right_ticks = MM_TO_TICKS(1800),
+    {
+        .left_ticks = 500,
+        .right_ticks = 500,
+        .left_speed = MOTOR_MAX_SPEED,
+        .right_speed = MOTOR_MAX_SPEED,
+    },
+    {
+        .left_ticks = 500,
+        .right_ticks = 500,
+        .left_speed = MOTOR_MAX_SPEED,
+        .right_speed = MOTOR_MAX_SPEED,
+    },
+
+    /* Go 3000 backward */
+    {
+        .left_ticks = 500,
+        .right_ticks = 500,
         .left_speed = -MOTOR_MAX_SPEED,
         .right_speed = -MOTOR_MAX_SPEED,
     },
-    { 
-        .left_ticks = MM_TO_TICKS(900),
-        .right_ticks = MM_TO_TICKS(900),
+    {
+        .left_ticks = 500,
+        .right_ticks = 500,
+        .left_speed = -MOTOR_MAX_SPEED,
+        .right_speed = -MOTOR_MAX_SPEED,
+    },
+    {
+        .left_ticks = 500,
+        .right_ticks = 500,
+        .left_speed = -MOTOR_MAX_SPEED,
+        .right_speed = -MOTOR_MAX_SPEED,
+    },
+    {
+        .left_ticks = 500,
+        .right_ticks = 500,
+        .left_speed = -MOTOR_MAX_SPEED,
+        .right_speed = -MOTOR_MAX_SPEED,
+    },
+    {
+        .left_ticks = 500,
+        .right_ticks = 500,
+        .left_speed = -MOTOR_MAX_SPEED,
+        .right_speed = -MOTOR_MAX_SPEED,
+    },
+    {
+        .left_ticks = 500,
+        .right_ticks = 500,
+        .left_speed = -MOTOR_MAX_SPEED,
+        .right_speed = -MOTOR_MAX_SPEED,
+    },
+
+    /* Go 1500 forward */
+    {
+        .left_ticks = 500,
+        .right_ticks = 500,
         .left_speed = MOTOR_MAX_SPEED,
         .right_speed = MOTOR_MAX_SPEED,
     },
-    { 
-        .left_ticks = MM_TO_TICKS(TURN_90),
-        .right_ticks = MM_TO_TICKS(TURN_90),
+    {
+        .left_ticks = 500,
+        .right_ticks = 500,
+        .left_speed = MOTOR_MAX_SPEED,
+        .right_speed = MOTOR_MAX_SPEED,
+    },
+    {
+        .left_ticks = 500,
+        .right_ticks = 500,
+        .left_speed = MOTOR_MAX_SPEED,
+        .right_speed = MOTOR_MAX_SPEED,
+    },
+
+    {
+        .left_ticks = 300,
+        .right_ticks = 300,
+        .left_speed = MOTOR_MAX_SPEED,
+        .right_speed = MOTOR_MAX_SPEED,
+    },
+    {
+        .left_ticks = 300,
+        .right_ticks = 300,
+        .left_speed = MOTOR_MAX_SPEED,
+        .right_speed = MOTOR_MAX_SPEED,
+    },
+
+    /* Turn left */
+    {
+        .left_ticks = 320,
+        .right_ticks = 320,
         .left_speed = -MOTOR_MAX_SPEED,
         .right_speed = MOTOR_MAX_SPEED,
     },
-    { 
-        .left_ticks = MM_TO_TICKS(1640),
-        .right_ticks = MM_TO_TICKS(1640),
+    {
+        .left_ticks = 320,
+        .right_ticks = 320,
+        .left_speed = -MOTOR_MAX_SPEED,
+        .right_speed = MOTOR_MAX_SPEED,
+    },
+
+
+    /* 3000 clicks forwards */
+    {
+        .left_ticks = 500,
+        .right_ticks = 500,
+        .left_speed = MOTOR_MAX_SPEED,
+        .right_speed = MOTOR_MAX_SPEED,
+    },
+    {
+        .left_ticks = 500,
+        .right_ticks = 500,
+        .left_speed = MOTOR_MAX_SPEED,
+        .right_speed = MOTOR_MAX_SPEED,
+    },
+    {
+        .left_ticks = 500,
+        .right_ticks = 500,
+        .left_speed = MOTOR_MAX_SPEED,
+        .right_speed = MOTOR_MAX_SPEED,
+    },
+    {
+        .left_ticks = 500,
+        .right_ticks = 500,
+        .left_speed = MOTOR_MAX_SPEED,
+        .right_speed = MOTOR_MAX_SPEED,
+    },
+    {
+        .left_ticks = 500,
+        .right_ticks = 500,
+        .left_speed = MOTOR_MAX_SPEED,
+        .right_speed = MOTOR_MAX_SPEED,
+    },
+    {
+        .left_ticks = 500,
+        .right_ticks = 500,
         .left_speed = MOTOR_MAX_SPEED,
         .right_speed = MOTOR_MAX_SPEED,
     }
 };
+
+static size_t current_movement = 0;
 
 /**************************************************
 * Public Functions
@@ -251,12 +409,7 @@ void mode_remote_control(void)
     stick_right = dualshock_read_axis(DUALSHOCK_AXIS_RY);
     trim = dualshock_read_axis(DUALSHOCK_AXIS_R2);
 
-    if (trim == 0)
-    {
-        /* We allow 0..MOTOR_MAX_SPEED/4 */
-        trim = 4;
-    }
-    else if ((trim > 10) && (trim <= 65530))
+    if (trim <= 10)
     {
         /* We allow 0..MOTOR_MAX_SPEED/2 */
         trim = 2;
@@ -275,20 +428,20 @@ void mode_remote_control(void)
     motor_right = motor_right / trim;
 
     sprintf(msg, "L%c%03d %04X", (motor_left < 0) ? '-' : '+', abs(motor_left), (uint16_t) stick_left);
-    font_draw_text_small(0, 0, msg, LCD_WHITE, LCD_BLACK, true);
+    font_draw_text_small(0, 0, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
     sprintf(msg, "R%c%03d %04X", (motor_right < 0) ? '-' : '+', abs(motor_right), (uint16_t) stick_right);
-    font_draw_text_small(0, 10, msg, LCD_WHITE, LCD_BLACK, true);
+    font_draw_text_small(0, 10, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
     sprintf(msg, "Trim:%d", trim);
-    font_draw_text_small(0, 20, msg, LCD_WHITE, LCD_BLACK, true);
+    font_draw_text_small(0, 20, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
     lcd_flush();
 
     enum motor_status_t status;
 
     status = motor_control(
-        MOTOR_LEFT,
-        motor_left,
-        abs(motor_left)
-    );
+                 MOTOR_LEFT,
+                 motor_left,
+                 abs(motor_left)
+             );
 
     if (status != MOTOR_STATUS_OK)
     {
@@ -296,10 +449,10 @@ void mode_remote_control(void)
     }
 
     status = motor_control(
-        MOTOR_RIGHT,
-        motor_right,
-        abs(motor_right)
-    );
+                 MOTOR_RIGHT,
+                 motor_right,
+                 abs(motor_right)
+             );
 
     if (status != MOTOR_STATUS_OK)
     {
@@ -319,15 +472,41 @@ void mode_remote_control(void)
  */
 void mode_turn(void)
 {
+    bool finished = false;
+
     if (debounce_button())
     {
         return;
     }
 
-    font_draw_text_small(0, 10, "Turn!", LCD_WHITE, LCD_BLACK, true);
-    lcd_flush();    
+    if (mode_first)
+    {
+        font_draw_text_small(0, 10, "Turn!", LCD_WHITE, LCD_BLACK, FONT_PROPORTIONAL);
+        lcd_flush();
+        mode_first = false;
+        current_movement = 0;
+    }
+
+    if ((motor_read_steps(MOTOR_LEFT) == 0) && (motor_read_steps(MOTOR_RIGHT) == 0))
+    {
+        motor_control(MOTOR_LEFT, movements[current_movement].left_speed, movements[current_movement].left_ticks);
+        motor_control(MOTOR_RIGHT, movements[current_movement].right_speed, movements[current_movement].right_ticks);
+        current_movement++;
+        if (current_movement >= NUMELTS(movements))
+        {
+            finished = true;
+        }
+    }
+
     if (dualshock_read_button(DUALSHOCK_BUTTON_CROSS))
     {
+        finished = true;
+    }
+
+    if (finished)
+    {
+        /* Stop! */
+        motor_control(MOTOR_BOTH, 0, 0);
         last_button = DUALSHOCK_BUTTON_CROSS;
         change_mode(mode_menu);
     }
@@ -344,10 +523,17 @@ void mode_follow(void)
         return;
     }
 
-    font_draw_text_small(0, 10, "Line!", LCD_WHITE, LCD_BLACK, true);
-    lcd_flush();    
+    if (mode_first)
+    {
+        lcd_paint_clear_screen();
+        font_draw_text_small(0, 10, "Line!", LCD_WHITE, LCD_BLACK, FONT_PROPORTIONAL);
+        lcd_flush();
+        mode_first = false;
+    }
+
     if (dualshock_read_button(DUALSHOCK_BUTTON_CROSS))
     {
+        motor_control(MOTOR_BOTH, 0, 0);
         last_button = DUALSHOCK_BUTTON_CROSS;
         change_mode(mode_menu);
     }
@@ -359,15 +545,50 @@ void mode_follow(void)
  */
 void mode_hunt(void)
 {
+    bool finished = false;
+
     if (debounce_button())
     {
         return;
     }
 
-    font_draw_text_small(0, 10, "Hunt!", LCD_WHITE, LCD_BLACK, true);
-    lcd_flush();    
+    if (mode_first)
+    {
+        font_draw_text_small(0, 10, "Hunt!", LCD_WHITE, LCD_BLACK, FONT_PROPORTIONAL);
+        font_draw_text_small(0, 20, "Fast", LCD_WHITE, LCD_BLACK, FONT_PROPORTIONAL);
+        lcd_flush();
+        mode_first = false;
+        motor_control(MOTOR_BOTH, MOTOR_MAX_SPEED, 500);
+    }
+
+    if (motor_read_distance() < 20)
+    {
+        font_draw_text_small(0, 20, "Med.", LCD_WHITE, LCD_BLACK, FONT_PROPORTIONAL);
+        lcd_flush();
+        motor_control(MOTOR_BOTH, (MOTOR_MAX_SPEED * 2) / 3, 500);
+    }
+
+    if (motor_read_distance() < 10)
+    {
+        lcd_paint_clear_screen();
+        font_draw_text_small(0, 20, "Slow", LCD_WHITE, LCD_BLACK, FONT_PROPORTIONAL);
+        lcd_flush();
+        motor_control(MOTOR_BOTH, MOTOR_MAX_SPEED / 2, 500);
+    }
+
+    if (motor_read_distance() <= 2)
+    {
+        finished = true;
+    }
+
     if (dualshock_read_button(DUALSHOCK_BUTTON_CROSS))
     {
+        finished = true;
+    }
+
+    if (finished)
+    {
+        motor_control(MOTOR_BOTH, 0, 0);
         last_button = DUALSHOCK_BUTTON_CROSS;
         change_mode(mode_menu);
     }
@@ -413,7 +634,7 @@ bool select_mode(
     else
     {
         /* Go back to menu? */
-        printf("Unknown pointer %p\r\n", (const void*) p_menu_item);
+        printf("Unknown pointer %p\r\n", (const void *) p_menu_item);
         change_mode(mode_menu);
         retval = true;
     }
@@ -434,7 +655,7 @@ static bool debounce_button(void)
         {
             last_button = DUALSHOCK_NUM_BUTTONS;
         }
-    }    
+    }
     return retval;
 }
 

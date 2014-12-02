@@ -158,6 +158,13 @@ motor_step_count_t motor_read_steps(
     enum motor_t motor
 );
 
+/**
+ * Read the latest (smoothed) ultrasound measurement.
+ *
+ * @return a distance in cm to the nearest object
+ */
+unsigned int motor_read_distance(void);
+
 #ifdef __cplusplus
 }
 #endif

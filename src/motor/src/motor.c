@@ -315,6 +315,17 @@ motor_step_count_t motor_read_steps(
     }
 }
 
+/**
+ * Read the latest (smoothed) ultrasound measurement.
+ *
+ * @return a distance in cm to the nearest object
+ */
+unsigned int motor_read_distance(void)
+{
+    /* @todo implement on the arduino! */
+    return 0;
+}
+
 /**************************************************
 * Private Functions
 ***************************************************/
