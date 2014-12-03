@@ -138,7 +138,7 @@ int main(int argc, char **argv)
             char message[10];
             sprintf(message, "Start pad %c", spinner[i]);
             BOUNDS_INCREMENT(i, NUMELTS(spinner), 0);
-            font_draw_text_small(2, 20, message, LCD_WHITE, LCD_BLACK, FONT_PROPORTIONAL);
+            font_draw_text_small(2, 10, message, LCD_WHITE, LCD_BLACK, FONT_PROPORTIONAL);
             lcd_flush();
             retval = dualshock_init(sz_jsdev);
             sleep(1);
