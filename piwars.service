@@ -1,0 +1,11 @@
+[Unit]
+Description=PiWars Robot Software
+
+[Service]
+Type=forking
+ExecStart=/usr/bin/screen -d -m -S pwrs /root/robot/bin/pwrs
+ExecStop=/usr/bin/killall pwrs
+
+[Install]
+WantedBy=multi-user.target
+
