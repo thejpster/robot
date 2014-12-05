@@ -61,7 +61,6 @@
 #define MESSAGE_SPEED_OFFSET       2
 #define MESSAGE_COUNT_OFFSET       3
 #define MESSAGE_CHECKSUM_OFFSET    4
-#define MESSAGE_LEN                5
 
 /**************************************************
 * Data Types
@@ -101,8 +100,6 @@ static void build_message(
 static uint8_t calc_checksum(const uint8_t *p_message);
 
 static void set_motor(int speed, unsigned int tick_count, motor_settings_t *p_motor);
-
-static enum motor_status_t send_message(const uint8_t *p_message);
 
 static void process_rx_message(const rx_message_t* p_message);
 
@@ -226,9 +223,9 @@ enum motor_status_t motor_control(
     uint8_t message[MESSAGE_LEN];
 
     printf("In motor_control(motor=%u, speed=%d, steps=%u)\r\n", motor, speed, step_count);
-
+	
     /* Allow 1 second of running */
-    set_motor(speed, abs(speed), &temp);
+    set_motor(speed, step_count, &temp);
 
     if ((motor == MOTOR_LEFT) || (motor == MOTOR_BOTH))
     {
@@ -238,7 +235,7 @@ enum motor_status_t motor_control(
                left.speed
               );
         build_message(MOTOR_LEFT, &left, message);
-        result = send_message(message);
+        result = motor_send_message(message);
     }
     if ((motor == MOTOR_RIGHT) || (motor == MOTOR_BOTH))
     {
@@ -248,7 +245,7 @@ enum motor_status_t motor_control(
                right.speed
               );
         build_message(MOTOR_RIGHT, &right, message);
-        result = send_message(message);
+        result = motor_send_message(message);
     }
 
     return result;
@@ -324,6 +321,41 @@ unsigned int motor_read_distance(void)
 {
     /* @todo implement on the arduino! */
     return 0;
+}
+
+/**
+ * Writes byte array message to serial port.
+ *
+ * @param[in] p_message MESSAGE_LEN bytes of message
+ * @return success or an error
+ */
+motor_status_t motor_send_message(const uint8_t *p_message)
+{
+    enum motor_status_t result;
+    if (fd >= 0)
+    {
+        printf("Writing %u bytes\r\nData: ", MESSAGE_LEN);
+        for(size_t i = 0; i < MESSAGE_LEN; i++)
+        {
+            printf("%02x ", p_message[i]);
+        }
+        printf("\r\n");
+        ssize_t written = write(fd, p_message, MESSAGE_LEN);
+        if (written == MESSAGE_LEN)
+        {
+            result = MOTOR_STATUS_OK;
+        }
+        else
+        {
+            result = MOTOR_STATUS_SERIAL_ERROR;
+            printf("Serial port error %zd\r\n", written);
+        }
+    }
+    else
+    {
+        result = MOTOR_STATUS_NO_DEVICE;
+    }
+    return result;
 }
 
 /**************************************************
@@ -424,46 +456,6 @@ static void set_motor(int speed, unsigned int tick_count, motor_settings_t *p_mo
     {
         p_motor->speed = speed;
     }
-}
-
-/**
- * Writes message to serial port.
- *
- * @param[in] p_message MESSAGE_LEN bytes of message
- * @return success or an error
- */
-static enum motor_status_t send_message(const uint8_t *p_message)
-{
-    enum motor_status_t result;
-    if (fd >= 0)
-    {
-        printf("Writing %u bytes\r\nData: ", MESSAGE_LEN);
-        for(size_t i = 0; i < MESSAGE_LEN; i++)
-        {
-            printf("%02x ", p_message[i]);
-        }
-        printf("\r\n");
-        ssize_t written = write(fd, p_message, MESSAGE_LEN);
-        printf("TX: ");
-        for(size_t i = 0; i < MESSAGE_LEN; i++)
-        {
-            printf("%02X ", p_message[i]);
-        }
-        printf("\r\n");
-        if (written == MESSAGE_LEN)
-        {
-            result = MOTOR_STATUS_OK;
-        }
-        else
-        {
-            result = MOTOR_STATUS_SERIAL_ERROR;
-        }
-    }
-    else
-    {
-        result = MOTOR_STATUS_NO_DEVICE;
-    }
-    return result;
 }
 
 /**

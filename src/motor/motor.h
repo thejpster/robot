@@ -45,6 +45,8 @@ extern "C" {
 
 #define MOTOR_MAX_SPEED 320 
 
+#define MESSAGE_LEN 5
+
 /**************************************************
 * Public Data Types
 **************************************************/
@@ -137,6 +139,14 @@ extern enum motor_status_t motor_control(
     motor_speed_t speed,
     motor_step_count_t step_count
 );
+
+/**
+ * Writes byte array message to serial port.
+ *
+ * @param[in] p_message MESSAGE_LEN bytes of message
+ * @return success or an error
+ */
+motor_status_t motor_send_message(const uint8_t *p_message);
 
 /**
  * Check the motor controller serial port for ACKs and

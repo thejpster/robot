@@ -46,6 +46,8 @@
 ***************************************************/
 
 #include <stdlib.h>
+#include <unistd.h>
+#include <signal.h>
 
 #include "util/util.h"
 #include "dualshock/dualshock.h"
@@ -53,6 +55,7 @@
 #include "font/font.h"
 #include "lcd/lcd.h"
 #include "motor/motor.h"
+#include "line_follower/server.h"
 
 #include <modes/modes.h>
 
@@ -349,6 +352,8 @@ static struct movement_t movements[] =
 
 static size_t current_movement = 0;
 
+static int lf_pid = -1;
+
 /**************************************************
 * Public Functions
 ***************************************************/
@@ -388,6 +393,16 @@ void mode_menu(void)
         printf("Enter!\r\n");
         menu_keypress(MENU_KEYPRESS_ENTER);
         last_button = DUALSHOCK_BUTTON_CROSS;
+    }
+    else if (dualshock_read_button(DUALSHOCK_BUTTON_TRIANGLE))
+    {
+        printf("Reboot!\r\n");
+        system("reboot");
+    }
+    else if (dualshock_read_button(DUALSHOCK_BUTTON_CIRCLE))
+    {
+        printf("Shutting Down!\r\n");
+        system("shutdown now");
     }
 }
 
@@ -518,6 +533,10 @@ void mode_turn(void)
  */
 void mode_follow(void)
 {
+    int status, server_ret, recv_ret, got_data;
+    const char * socket_name = "socket.sock";
+    uint8_t data[PACKET_LEN];
+
     if (debounce_button())
     {
         return;
@@ -529,6 +548,42 @@ void mode_follow(void)
         font_draw_text_small(0, 10, "Line!", LCD_WHITE, LCD_BLACK, FONT_PROPORTIONAL);
         lcd_flush();
         mode_first = false;
+        
+
+        printf("Forking subprocess\n");
+        lf_pid = fork();
+        if(lf_pid == 0)
+        { 
+            // Child process will return 0 from fork()
+            sleep(2);
+            status = system("python2 /root/line_follower/main.py");/*Todo put socket as arg */
+            printf("Line follower ended with return value %d\n", status);
+            exit(0);
+        }
+        else
+        {
+            /* Parent process must initialise socket and wait for connection */
+            server_ret = lf_init((char *) socket_name);
+            if(server_ret)
+            {
+                printf("Failed to initialise socket\n");
+                change_mode(mode_menu);
+                return;
+            }
+        }
+    }
+
+    
+    recv_ret = lf_receive((char *) &data, &got_data);
+    if (recv_ret != 0)
+    {
+        motor_control(MOTOR_BOTH, 0, 0);
+        change_mode(mode_menu);
+    }
+    else if (got_data > 0)
+    {
+        printf("PACKET %u%u%u%u\n",data[1],data[2],data[3],data[4]);
+        motor_send_message((uint8_t *) &data);
     }
 
     if (dualshock_read_button(DUALSHOCK_BUTTON_CROSS))
@@ -600,6 +655,20 @@ void mode_hunt(void)
 
 static void change_mode(mode_function_t new_mode)
 {
+    if(mode_current == mode_follow)
+    {
+        /* We have to kill the current line_follower server */
+        printf("============================\n");
+        printf("Closing line follower server\n");
+        printf("============================\n");
+        if(lf_pid > 0)
+        {
+            kill(lf_pid, SIGINT);
+        }
+        sleep(1);
+        lf_close();
+    }
+
     lcd_paint_clear_screen();
     mode_current = new_mode;
     mode_first = true;
