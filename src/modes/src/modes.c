@@ -88,7 +88,7 @@ The route:
 
 #define MM_TO_TICKS(x) (((x) * 1773) / 1000)
 /* @todo change this! */
-#define TURN_90 (333)
+#define TURN_90 (233)
 
 /**************************************************
 * Data Types
@@ -151,7 +151,19 @@ static enum dualshock_button_t last_button = DUALSHOCK_NUM_BUTTONS;
 /* Each movement is limited by the protocol to 508 clicks (254 * 2) */
 static struct movement_t movements[] =
 {
-    /* 3000 clicks forwards */
+    /* 4000 clicks forwards */
+    {
+        .left_ticks = 500,
+        .right_ticks = 500,
+        .left_speed = MOTOR_MAX_SPEED,
+        .right_speed = MOTOR_MAX_SPEED,
+    },
+    {
+        .left_ticks = 500,
+        .right_ticks = 500,
+        .left_speed = MOTOR_MAX_SPEED,
+        .right_speed = MOTOR_MAX_SPEED,
+    },
     {
         .left_ticks = 500,
         .right_ticks = 500,
@@ -192,14 +204,14 @@ static struct movement_t movements[] =
 
     /* Turning 90 degrees left */
     {
-        .left_ticks = 320,
-        .right_ticks = 320,
+        .left_ticks = TURN_90,
+        .right_ticks = TURN_90,
         .left_speed = -MOTOR_MAX_SPEED,
         .right_speed = MOTOR_MAX_SPEED,
     },
     {
-        .left_ticks = 320,
-        .right_ticks = 320,
+        .left_ticks = TURN_90,
+        .right_ticks = TURN_90,
         .left_speed = -MOTOR_MAX_SPEED,
         .right_speed = MOTOR_MAX_SPEED,
     },
@@ -283,35 +295,34 @@ static struct movement_t movements[] =
         .right_speed = MOTOR_MAX_SPEED,
     },
 
-    {
-        .left_ticks = 300,
-        .right_ticks = 300,
-        .left_speed = MOTOR_MAX_SPEED,
-        .right_speed = MOTOR_MAX_SPEED,
-    },
-    {
-        .left_ticks = 300,
-        .right_ticks = 300,
-        .left_speed = MOTOR_MAX_SPEED,
-        .right_speed = MOTOR_MAX_SPEED,
-    },
-
     /* Turn left */
     {
-        .left_ticks = 320,
-        .right_ticks = 320,
+        .left_ticks = TURN_90,
+        .right_ticks = TURN_90,
         .left_speed = -MOTOR_MAX_SPEED,
         .right_speed = MOTOR_MAX_SPEED,
     },
     {
-        .left_ticks = 320,
-        .right_ticks = 320,
+        .left_ticks = TURN_90,
+        .right_ticks = TURN_90,
         .left_speed = -MOTOR_MAX_SPEED,
         .right_speed = MOTOR_MAX_SPEED,
     },
 
 
-    /* 3000 clicks forwards */
+    /* 4000 clicks forwards */
+    {
+        .left_ticks = 500,
+        .right_ticks = 500,
+        .left_speed = MOTOR_MAX_SPEED,
+        .right_speed = MOTOR_MAX_SPEED,
+    },
+    {
+        .left_ticks = 500,
+        .right_ticks = 500,
+        .left_speed = MOTOR_MAX_SPEED,
+        .right_speed = MOTOR_MAX_SPEED,
+    },
     {
         .left_ticks = 500,
         .right_ticks = 500,
