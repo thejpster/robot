@@ -627,22 +627,16 @@ void mode_hunt(void)
         motor_control(MOTOR_BOTH, MOTOR_MAX_SPEED, 500);
     }
 
-    if (motor_read_distance() < 20)
-    {
-        font_draw_text_small(0, 20, "Med.", LCD_WHITE, LCD_BLACK, FONT_PROPORTIONAL);
-        lcd_flush();
-        motor_control(MOTOR_BOTH, (MOTOR_MAX_SPEED * 2) / 3, 500);
-    }
-
     if (motor_read_distance() < 10)
     {
         lcd_paint_clear_screen();
+        font_draw_text_small(0, 10, "Hunt!", LCD_WHITE, LCD_BLACK, FONT_PROPORTIONAL);
         font_draw_text_small(0, 20, "Slow", LCD_WHITE, LCD_BLACK, FONT_PROPORTIONAL);
         lcd_flush();
         motor_control(MOTOR_BOTH, MOTOR_MAX_SPEED / 2, 500);
     }
 
-    if (motor_read_distance() <= 2)
+    if (motor_read_distance() <= 4)
     {
         finished = true;
     }

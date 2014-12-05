@@ -55,6 +55,7 @@
 #define MESSAGE_CONTROL_STALL      0x05
 #define MESSAGE_CONTROL_RHS_CLICKS 0x06
 #define MESSAGE_CONTROL_LHS_CLICKS 0x07
+#define MESSAGE_CONTROL_ULTRASOUND 0x08
 
 #define MESSAGE_HEADER_OFFSET      0
 #define MESSAGE_CONTROL_OFFSET     1
@@ -77,14 +78,14 @@ typedef struct motor_settings_t
 typedef struct rx_message_t
 {
     uint8_t command;
-    unsigned int ticks_remaining;
+    unsigned int value;
 } rx_message_t;
 
 typedef enum read_state_t
 {
     READ_STATE_HEADER,
     READ_STATE_COMMAND,
-    READ_STATE_CLICKS,
+    READ_STATE_VALUE,
     READ_STATE_CHECKSUM
 } read_state_t;
 
@@ -132,6 +133,8 @@ static motor_settings_t right =
 static rx_message_t rx_message = { 0 };
 
 static read_state_t read_state = READ_STATE_HEADER;
+
+static uint8_t distance_cm;
 
 /**************************************************
 * Public Functions
@@ -223,7 +226,7 @@ enum motor_status_t motor_control(
     uint8_t message[MESSAGE_LEN];
 
     printf("In motor_control(motor=%u, speed=%d, steps=%u)\r\n", motor, speed, step_count);
-	
+    
     /* Allow 1 second of running */
     set_motor(speed, step_count, &temp);
 
@@ -319,8 +322,7 @@ motor_step_count_t motor_read_steps(
  */
 unsigned int motor_read_distance(void)
 {
-    /* @todo implement on the arduino! */
-    return 0;
+    return distance_cm;
 }
 
 /**
@@ -473,12 +475,16 @@ static void process_rx_message(const rx_message_t* p_message)
         printf("ACK\r\n");
         break;
     case MESSAGE_CONTROL_LHS_CLICKS:
-        printf("LHS clicks = %u\r\n", p_message->ticks_remaining);
-        left.last_ticks_remaining = p_message->ticks_remaining;
+        printf("LHS clicks = %u\r\n", p_message->value);
+        left.last_ticks_remaining = p_message->value;
         break;
     case MESSAGE_CONTROL_RHS_CLICKS:
-        printf("RHS clicks = %u\r\n", p_message->ticks_remaining);
-        right.last_ticks_remaining = p_message->ticks_remaining;
+        printf("RHS clicks = %u\r\n", p_message->value);
+        right.last_ticks_remaining = p_message->value;
+        break;
+    case MESSAGE_CONTROL_ULTRASOUND:
+        printf("Distance = %u cm\r\n", p_message->value);
+        distance_cm = p_message->value;
         break;
     }
 }
@@ -512,9 +518,10 @@ static void process_rx_byte(uint8_t byte)
             break;
         case MESSAGE_CONTROL_LHS_CLICKS:
         case MESSAGE_CONTROL_RHS_CLICKS:
+        case MESSAGE_CONTROL_ULTRASOUND:
             rx_message.command = byte;
             checksum ^= byte;
-            read_state = READ_STATE_CLICKS;
+            read_state = READ_STATE_VALUE;
             break;
         default:
             printf("Unknown command %02x\r\n", byte);
@@ -522,9 +529,9 @@ static void process_rx_byte(uint8_t byte)
             break;
         }
         break;
-    case READ_STATE_CLICKS:
+    case READ_STATE_VALUE:
         checksum ^= byte;
-        rx_message.ticks_remaining = byte << 1;
+        rx_message.value = byte << 1;
         read_state = READ_STATE_CHECKSUM;
         break;
     case READ_STATE_CHECKSUM:
