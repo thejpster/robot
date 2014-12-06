@@ -155,7 +155,7 @@ static int receive(char * p_data, int buffer_len, int * p_len)
     }
     else
     {
-        printf("Got something\n");
+        //printf("Got something\n");
         *p_len = (int) len;
     }
     return 0;
