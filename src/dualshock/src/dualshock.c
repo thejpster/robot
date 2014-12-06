@@ -170,7 +170,7 @@ void dualshock_read_or_timeout(struct timeval *p_delay)
         size_t rx = read(fd, &data, sizeof(data));
         if (verbose_flag)
         {
-            printf("Read %zu from joystick\n", rx);
+            //printf("Read %zu from joystick\n", rx);
         }
         assert(rx == sizeof(data));
         process_event(&data);

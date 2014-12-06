@@ -269,7 +269,7 @@ motor_status_t motor_poll(void)
         ssize_t read_result = read(fd, message_buffer, sizeof(message_buffer));
         if (read_result > 0)
         {
-            printf("Read %zu from serial port\r\n", read_result);
+            //printf("Read %zu from serial port\r\n", read_result);
             size_t index = 0;
             while(read_result)
             {
@@ -336,10 +336,10 @@ motor_status_t motor_send_message(const uint8_t *p_message)
     enum motor_status_t result;
     if (fd >= 0)
     {
-        printf("Writing %u bytes\r\nData: ", MESSAGE_LEN);
+        //printf("Writing %u bytes\r\nData: ", MESSAGE_LEN);
         for(size_t i = 0; i < MESSAGE_LEN; i++)
         {
-            printf("%02x ", p_message[i]);
+            //printf("%02x ", p_message[i]);
         }
         printf("\r\n");
         ssize_t written = write(fd, p_message, MESSAGE_LEN);
@@ -472,18 +472,18 @@ static void process_rx_message(const rx_message_t* p_message)
     switch(p_message->command)
     {
     case MESSAGE_CONTROL_ACK:
-        printf("ACK\r\n");
+        //printf("ACK\r\n");
         break;
     case MESSAGE_CONTROL_LHS_CLICKS:
-        printf("LHS clicks = %u\r\n", p_message->value);
+        //printf("LHS clicks = %u\r\n", p_message->value);
         left.last_ticks_remaining = p_message->value;
         break;
     case MESSAGE_CONTROL_RHS_CLICKS:
-        printf("RHS clicks = %u\r\n", p_message->value);
+        //printf("RHS clicks = %u\r\n", p_message->value);
         right.last_ticks_remaining = p_message->value;
         break;
     case MESSAGE_CONTROL_ULTRASOUND:
-        printf("Distance = %u cm\r\n", p_message->value);
+        //printf("Distance = %u cm\r\n", p_message->value);
         distance_cm = p_message->value;
         break;
     }
