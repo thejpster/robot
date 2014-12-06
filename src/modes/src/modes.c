@@ -593,7 +593,6 @@ void mode_follow(void)
     }
     else if (got_data > 0)
     {
-        printf("PACKET %u%u%u%u\n",data[1],data[2],data[3],data[4]);
         motor_send_message((uint8_t *) &data);
     }
 
@@ -609,9 +608,12 @@ void mode_follow(void)
  * Drives until it (almost) hits something.
  *
  */
+static int speed;
 void mode_hunt(void)
 {
     bool finished = false;
+    char message[10];
+    unsigned int distance = motor_read_distance();
 
     if (debounce_button())
     {
@@ -621,25 +623,34 @@ void mode_hunt(void)
     if (mode_first)
     {
         font_draw_text_small(0, 10, "Hunt!", LCD_WHITE, LCD_BLACK, FONT_PROPORTIONAL);
-        font_draw_text_small(0, 20, "Fast", LCD_WHITE, LCD_BLACK, FONT_PROPORTIONAL);
-        lcd_flush();
         mode_first = false;
-        motor_control(MOTOR_BOTH, MOTOR_MAX_SPEED, 500);
+        speed = MOTOR_MAX_SPEED;
     }
 
-    if (motor_read_distance() < 10)
+    if (distance < 400)
     {
-        lcd_paint_clear_screen();
-        font_draw_text_small(0, 10, "Hunt!", LCD_WHITE, LCD_BLACK, FONT_PROPORTIONAL);
-        font_draw_text_small(0, 20, "Slow", LCD_WHITE, LCD_BLACK, FONT_PROPORTIONAL);
-        lcd_flush();
-        motor_control(MOTOR_BOTH, MOTOR_MAX_SPEED / 2, 500);
+        speed = (MOTOR_MAX_SPEED * 2) / 3;
     }
 
-    if (motor_read_distance() <= 4)
+    if (distance < 200)
+    {
+        speed = MOTOR_MAX_SPEED / 2;
+    }
+
+    if (distance <= 100)
     {
         finished = true;
+        speed = 0;
     }
+
+    motor_control(MOTOR_BOTH, speed, 500);
+
+    sprintf(message, "D:%03d", distance);
+    font_draw_text_small(0, 20, message, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
+
+    sprintf(message, "S:%03d", speed);
+    font_draw_text_small(0, 30, message, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
+    lcd_flush();
 
     if (dualshock_read_button(DUALSHOCK_BUTTON_CROSS))
     {
