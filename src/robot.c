@@ -46,7 +46,11 @@
 * Defines
 ***************************************************/
 
+#ifdef LCD_SIM
+#define LOOPS_PER_SECOND 5
+#else
 #define LOOPS_PER_SECOND 20
+#endif
 
 /**************************************************
 * Data Types
@@ -163,7 +167,7 @@ int main(int argc, char **argv)
             if (loop_delay.tv_sec == 0 && loop_delay.tv_usec == 0)
             {
                 motor_poll();
-                mode_current();
+                mode_handle();
                 gpio_set_output(led, led_state);
                 led_state = !led_state;
                 loop_delay = delay_master;

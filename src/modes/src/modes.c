@@ -19,19 +19,19 @@
 *
 * This is the mode management module. Modes roughly align
 * with the various challenges the robot has to undertake.
-*
+
 * These are:
 *
 *   Remote control challenges (all in one mode):
-*   * Robot golf (moving a ball in to a goal)
-*   * Sumo (shoving another robot off the pitch)
+*   * Skittles (shoving a ball around)
+*   * Robot golf (shoving a golf ball around)
+*   * Pi Noon (popping another robot's balloon)
 *   * Obstacle Course (remote control around a course)
-*   * Straight Line Speed Test (drive fast in a straight line)
 *
 *   Autonomous challenges:
+*   * Straight Line Speed Test (drive fast in a straight line between two walls)
 *   * Line following (following a black line course autonomously)
-*   * Proxmity Alert (drive up to a wall but don't hit it)
-*   * Three Point Turn (back up, turn around and return, autonomously)
+*   * Minimal maze (drive around a maze with high walls autonomously)
 *
 * The motor controller takes speed inputs between zero
 * and 330 ticks per second. We measured 330 ticks/second
@@ -63,25 +63,6 @@
 * Defines
 ***************************************************/
 
-/*
-The route:
-+------+-----------------------+------------+
-|      |                       |            |
-|      |                       +-----11-----+
-|      |                       |            |
-|      |                       |      12    |
-+------+                       |   10|      |
-|      |                       |     |13    |
-|START 1  2   3   4  5  6  7  8|  9  |      |
-|  25  24  23  22   21   20   19  18 |14    |
-+------+                       |     |      |
-|      |                       |   17 15    |
-|      |                       |            |
-|      |                       +----16------+
-|      |                       |            |
-+------+-----------------------+------------+
-*/
-
 /* There are 1000 ticks per three wheel rotations */
 /* Wheels are 60mm diameter => ~188mm circumference */
 /* => 1000 mm = ~5.3 wheel turns = ~1773 ticks */
@@ -94,46 +75,49 @@ The route:
 * Data Types
 **************************************************/
 
-
-typedef struct movement_t
-{
-    /* Bigger than a motor_step_count_t */
-    uint32_t left_ticks;
-    uint32_t right_ticks;
-    motor_speed_t left_speed;
-    motor_speed_t right_speed;
-} movement_t;
-
+typedef void (*mode_function_t)(void);
 
 /**************************************************
 * Function Prototypes
 **************************************************/
 
+static void mode_menu(void);
+static void mode_remote_control(void);
+static void mode_test(void);
 static void change_mode(mode_function_t new_mode);
-
-bool select_mode(
+static bool select_mode(
     const struct menu_t *p_menu,
     const struct menu_item_t *p_menu_item
 );
-
 static bool debounce_button(void);
 
 /**************************************************
 * Public Data
 **************************************************/
 
-mode_function_t mode_current = mode_menu;
+/* None */
 
 /**************************************************
 * Private Data
 **************************************************/
 
+static mode_function_t current_mode = mode_menu;
+
 static bool mode_first = true;
 
 static const struct menu_item_t top_menu_items[] =
 {
+    /* http://piwars.org/2017-competition/challenges/slightly-deranged-golf/
+       http://piwars.org/2017-competition/challenges/skittles/
+       http://piwars.org/2017-competition/challenges/obstacle-course/
+       http://piwars.org/2017-competition/challenges/pi-noon-the-robot-vs-robot-duel/ */
     { "Remote", MENU_ITEM_TYPE_ACTION, NULL, select_mode },
-    { "Test", MENU_ITEM_TYPE_ACTION, NULL, select_mode },
+    /* http://piwars.org/2017-competition/challenges/straight-line-speed-test/ */
+    { "Speed", MENU_ITEM_TYPE_ACTION, NULL, select_mode },
+    /* http://piwars.org/2017-competition/challenges/minimal-maze/ */
+    { "Maze", MENU_ITEM_TYPE_ACTION, NULL, select_mode },
+    /* http://piwars.org/2017-competition/challenges/line-following/ */
+    { "Line", MENU_ITEM_TYPE_ACTION, NULL, select_mode },
 };
 
 static const struct menu_t top_menu =
@@ -150,10 +134,22 @@ static enum dualshock_button_t last_button = DUALSHOCK_NUM_BUTTONS;
 * Public Functions
 ***************************************************/
 
+/*
+ * Jump to whichever mode we have registered as the current one.
+ */
+void mode_handle(void)
+{
+    current_mode();
+}
+
+/**************************************************
+* Private Functions
+***************************************************/
+
 /**
  * Mode selection menu.
  */
-void mode_menu(void)
+static void mode_menu(void)
 {
 
     if (mode_first)
@@ -194,14 +190,16 @@ void mode_menu(void)
     else if (dualshock_read_button(DUALSHOCK_BUTTON_CIRCLE))
     {
         printf("Shutting Down!\r\n");
+#ifndef LCD_SIM
         system("shutdown now");
+#endif
     }
 }
 
 /**
  * Remote control mode.
  */
-void mode_remote_control(void)
+static void mode_remote_control(void)
 {
     char msg[14];
     int stick_left, stick_right, trim;
@@ -276,9 +274,9 @@ void mode_remote_control(void)
 /**
  * Tests the LCD.
  */
-static int x = 1;
-void mode_test(void)
+static void mode_test(void)
 {
+    static int x = 1;
     if (debounce_button())
     {
         return;
@@ -297,18 +295,21 @@ void mode_test(void)
     }
 }
 
-/**************************************************
-* Private Functions
-***************************************************/
-
+/*
+ * Called when a mode is changed. Clears up the LCD ready
+ * for the new mode.
+ */
 static void change_mode(mode_function_t new_mode)
 {
     lcd_paint_clear_screen();
-    mode_current = new_mode;
+    current_mode = new_mode;
     mode_first = true;
 }
 
-bool select_mode(
+/*
+ * Called when a menu item is selected.
+ */
+static bool select_mode(
     const struct menu_t *p_menu,
     const struct menu_item_t *p_menu_item
 )
@@ -321,7 +322,17 @@ bool select_mode(
     }
     else if (p_menu_item == &top_menu_items[1])
     {
-        /* Spin mode */
+        /* Test mode (for now) */
+        change_mode(mode_test);
+    }
+    else if (p_menu_item == &top_menu_items[2])
+    {
+        /* Test mode (for now) */
+        change_mode(mode_test);
+    }
+    else if (p_menu_item == &top_menu_items[3])
+    {
+        /* Spin mode (tet mode) */
         change_mode(mode_test);
     }
     else
@@ -334,6 +345,11 @@ bool select_mode(
     return retval;
 }
 
+/**
+ * While button is still held, mode routine should
+ * do nothing. Avoids accidentally selecting something
+ * immediately when you enter a mode.
+ */
 static bool debounce_button(void)
 {
     bool retval = false;

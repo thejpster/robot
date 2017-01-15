@@ -44,53 +44,23 @@ extern "C" {
 * Public Data Types
 **************************************************/
 
-typedef void (*mode_function_t)(void);
+/* None */
 
 /**************************************************
 * Public Data
 **************************************************/
 
-extern mode_function_t mode_current;
+/* None */
 
 /**************************************************
 * Public Function Prototypes
 ***************************************************/
 
-/**
- * Menu mode. Selects another mode.
- *
+/*
+ * Call this periodically to do whatever needs to be done
+ * in this mode. Will exit promptly.
  */
-extern void mode_menu(void);
-
-
-/**
- * Direct remote control mode.
- *
- * Converts pad inputs into motor drive.
- *
- */
-extern void mode_remote_control(void);
-
-
-/**
- * Does a three point turn.
- *
- */
-extern void mode_turn(void);
-
-
-/**
- * Follows a line.
- *
- */
-extern void mode_follow(void);
-
-
-/**
- * Drives until it (almost) hits something.
- *
- */
-extern void mode_hunt(void);
+void mode_handle(void);
 
 #ifdef __cplusplus
 }
