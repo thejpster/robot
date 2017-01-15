@@ -14,6 +14,7 @@ DEBUG = False
 
 WIDTH=84
 HEIGHT=48
+SCALE=4
 
 class ResultEvent(wx.PyEvent):
 
@@ -90,12 +91,12 @@ class LCD(wx.Frame):
 
     def __init__(self, parent, title):
         super(LCD, self).__init__(parent, title=title,
-                                  size=(WIDTH, HEIGHT))
+                                  size=(WIDTH*SCALE, (HEIGHT + 9)*SCALE))
         self.Bind(wx.EVT_PAINT, self.OnPaint)
         self.Connect(-1, -1, EVT_RESULT_ID, self.OnMessage)
         self.Centre()
         self.Show()
-        self.bmp = wx.EmptyBitmap(WIDTH, HEIGHT)
+        self.bmp = wx.EmptyBitmap(WIDTH*SCALE, HEIGHT*SCALE)
         self.clearBitmap()
         self.count = 0
 
@@ -118,7 +119,7 @@ class LCD(wx.Frame):
         dc.SelectObject(self.bmp)
         dc.SetBrush(wx.Brush((0, 0, 0), wx.SOLID))
         dc.SetPen(wx.Pen((0, 0, 0)))
-        dc.DrawRectangle(0, 0, WIDTH, HEIGHT)
+        dc.DrawRectangle(0, 0, WIDTH*SCALE, HEIGHT*SCALE)
         dc.SelectObject(wx.NullBitmap)
         # del dc # need to get rid of the MemoryDC before Update() is called.
 
@@ -127,8 +128,9 @@ class LCD(wx.Frame):
         dc.SelectObject(self.bmp)
         dc.SetBrush(wx.Brush(colour, wx.SOLID))
         dc.SetPen(wx.Pen(colour))
-        (x, y) = p1
-        (w, h) = (1 + p2[0] - p1[0], 1 + p2[1] - p1[1])
+        (x, y) = (p1[0] * SCALE, p1[1] * SCALE)
+        (w, h) = (1 + (p2[0] - p1[0]), 1 + (p2[1] - p1[1]))
+        (w, h) = (w * SCALE, h * SCALE)
         if DEBUG:
             print "DrawRectangle(%u,%u,%u,%u) @ %02x%02x%02x" % (x,y,w,h,colour[0],colour[1],colour[2])
         dc.DrawRectangle(x, y, w, h)
@@ -149,10 +151,12 @@ class LCD(wx.Frame):
                 is_fg = byte & 0x80
                 byte <<= 1
                 if is_fg:
-                    dc.SetPen(fg_pen)
+                    # dc.SetPen(fg_pen)
+                    self.setBox((x,y), (x,y), fg)
                 else:
-                    dc.SetPen(bg_pen)
-                dc.DrawPoint(x, y)
+                    # dc.SetPen(bg_pen)
+                    self.setBox((x,y), (x,y), bg)
+                #dc.DrawPoint(x, y)
                 if (x == max_x):
                     x = min_x
                     y += 1
