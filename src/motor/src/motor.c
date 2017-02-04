@@ -71,13 +71,25 @@ MESSAGE_ESC    => MESSAGE_ESC MESSAGE_ESC_ESC
 
 typedef enum motor_command_t
 {
-    MESSAGE_COMMAND_LHS_FWD,
-    MESSAGE_COMMAND_LHS_BACK,
-    MESSAGE_COMMAND_RHS_FWD,
-    MESSAGE_COMMAND_RHS_BACK,
-    MESSAGE_COMMAND_STATUS,
-    MESSAGE_COMMAND_LED
+    MESSAGE_COMMAND_SPEED_REQ,
+    MESSAGE_COMMAND_SPEED_IND,
+    MESSAGE_COMMAND_CURRENT_IND,
+    MAX_VALID_COMMAND
 } motor_command_t;
+
+typedef struct message_speed_req_t
+{
+    uint32_t ctx;
+    uint8_t side; // 0 = left, 1 = right
+    uint8_t clicks; // max clicks to travel
+    int16_t speed; // clicks per second
+} message_speed_req_t;
+
+typedef struct message_speed_ind_t
+{
+    uint16_t speed;
+    uint8_t motor;
+} message_speed_ind_t;
 
 typedef struct motor_settings_t
 {
@@ -215,11 +227,28 @@ enum motor_status_t motor_control(
     motor_step_count_t step_count
 )
 {
+    static uint32_t last_ctx = 0;
     printf("In motor_control(motor=%u, speed=%d, steps=%u)\r\n", motor, speed, step_count);
-    uint8_t data[] = { 0xA0, 0xB0, 0xC0, 0xD0 };
-    if (motor == 0)
+    if (motor == MOTOR_BOTH)
     {
-        send_message(MESSAGE_COMMAND_LHS_FWD, sizeof(data), data);
+        message_speed_req_t req = {
+                .ctx = last_ctx++,
+                .side = 0,
+                .clicks = step_count,
+                .speed = speed
+        };
+        send_message(MESSAGE_COMMAND_SPEED_REQ, sizeof(req), &req);
+        req.side = 1;
+        req.ctx = last_ctx++;
+        send_message(MESSAGE_COMMAND_SPEED_REQ, sizeof(req), &req);
+    } else {
+        message_speed_req_t req = {
+                .ctx = last_ctx++,
+                .side = (motor == MOTOR_LEFT) ? 0 : 1,
+                .clicks = step_count,
+                .speed = speed
+        };
+        send_message(MESSAGE_COMMAND_SPEED_REQ, sizeof(req), &req);
     }
     return MOTOR_STATUS_OK;
 }
@@ -366,29 +395,13 @@ static void process_rx_byte(uint8_t byte)
     case READ_STATE_IDLE:
         break;
     case READ_STATE_COMMAND:
-        switch (byte)
+        if (byte < MAX_VALID_COMMAND)
         {
-        case MESSAGE_COMMAND_LHS_FWD:
-            rx_message.command = MESSAGE_COMMAND_LHS_FWD;
-            break;
-        case MESSAGE_COMMAND_LHS_BACK:
-            rx_message.command = MESSAGE_COMMAND_LHS_BACK;
-            break;
-        case MESSAGE_COMMAND_RHS_FWD:
-            rx_message.command = MESSAGE_COMMAND_RHS_FWD;
-            break;
-        case MESSAGE_COMMAND_RHS_BACK:
-            rx_message.command = MESSAGE_COMMAND_RHS_BACK;
-            break;
-        case MESSAGE_COMMAND_STATUS:
-            rx_message.command = MESSAGE_COMMAND_STATUS;
-            break;
-        default:
+            rx_message.command = (motor_command_t) byte;
+            read_state = READ_STATE_LEN;
+        } else {
             read_state = READ_STATE_IDLE;
-            break;
         }
-        rx_message.command = (motor_command_t) byte;
-        read_state = READ_STATE_LEN;
         break;
     case READ_STATE_LEN:
         rx_message.data_read = 0;
