@@ -141,14 +141,6 @@ extern enum motor_status_t motor_control(
 );
 
 /**
- * Writes byte array message to serial port.
- *
- * @param[in] p_message MESSAGE_LEN bytes of message
- * @return success or an error
- */
-motor_status_t motor_send_message(const uint8_t *p_message);
-
-/**
  * Check the motor controller serial port for ACKs and
  * tick count updates. Call this regularly
  * otherwise the serial port buffer will fill up.

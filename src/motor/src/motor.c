@@ -44,28 +44,40 @@
 * Defines
 ***************************************************/
 
+/*
+Messages look like this:
+
+COMMAND DATA_LEN <DATA> CRC
+
+Message are then SLIP encoded for transmission over the UART.
+
+Frame Start/End: MESSAGE_HEADER
+MESSAGE_HEADER => MESSAGE_ESC MESSAGE_ESC_HEADER
+MESSAGE_ESC    => MESSAGE_ESC MESSAGE_ESC_ESC
+*/
+
 #define BAUDRATE B115200
 
-#define MESSAGE_HEADER             0xFF
-#define MESSAGE_CONTROL_LHS_FWD    0x00
-#define MESSAGE_CONTROL_LHS_BACK   0x01
-#define MESSAGE_CONTROL_RHS_FWD    0x02
-#define MESSAGE_CONTROL_RHS_BACK   0x03
-#define MESSAGE_CONTROL_ACK        0x04
-#define MESSAGE_CONTROL_STALL      0x05
-#define MESSAGE_CONTROL_RHS_CLICKS 0x06
-#define MESSAGE_CONTROL_LHS_CLICKS 0x07
-#define MESSAGE_CONTROL_ULTRASOUND 0x08
+#define MESSAGE_HEADER             0xC0
+#define MESSAGE_ESC                0xDB
+#define MESSAGE_ESC_HEADER         0xDC
+#define MESSAGE_ESC_ESC            0xDD
 
-#define MESSAGE_HEADER_OFFSET      0
-#define MESSAGE_CONTROL_OFFSET     1
-#define MESSAGE_SPEED_OFFSET       2
-#define MESSAGE_COUNT_OFFSET       3
-#define MESSAGE_CHECKSUM_OFFSET    4
+#define MAX_MESSAGE_LEN 254
 
 /**************************************************
 * Data Types
 **************************************************/
+
+typedef enum motor_command_t
+{
+    MESSAGE_COMMAND_LHS_FWD,
+    MESSAGE_COMMAND_LHS_BACK,
+    MESSAGE_COMMAND_RHS_FWD,
+    MESSAGE_COMMAND_RHS_BACK,
+    MESSAGE_COMMAND_STATUS,
+    MESSAGE_COMMAND_LED
+} motor_command_t;
 
 typedef struct motor_settings_t
 {
@@ -75,36 +87,32 @@ typedef struct motor_settings_t
     unsigned int last_ticks_remaining;
 } motor_settings_t;
 
-typedef struct rx_message_t
+typedef struct message_t
 {
-    uint8_t command;
-    unsigned int value;
-} rx_message_t;
+    motor_command_t command;
+    size_t data_len;
+    size_t data_read;
+    uint8_t data[MAX_MESSAGE_LEN];
+} message_t;
 
 typedef enum read_state_t
 {
-    READ_STATE_HEADER,
+    READ_STATE_IDLE,
     READ_STATE_COMMAND,
-    READ_STATE_VALUE,
-    READ_STATE_CHECKSUM
+    READ_STATE_LEN,
+    READ_STATE_DATA,
+    READ_STATE_CHECKSUM,
 } read_state_t;
 
 /**************************************************
 * Function Prototypes
 **************************************************/
 
-static void build_message(
-    motor_t motor,
-    const motor_settings_t *p_settings,
-    uint8_t *p_message
-);
-static uint8_t calc_checksum(const uint8_t *p_message);
-
-static void set_motor(int speed, unsigned int tick_count, motor_settings_t *p_motor);
-
-static void process_rx_message(const rx_message_t* p_message);
-
+static uint8_t calc_checksum(const message_t* p_message);
+static void process_rx_message(const message_t* p_message);
 static void process_rx_byte(uint8_t byte);
+static void send_message(motor_command_t command, size_t data_len, const uint8_t* p_data);
+static void write_esc(int fd, uint8_t data);
 
 /**************************************************
 * Public Data
@@ -118,23 +126,9 @@ static void process_rx_byte(uint8_t byte);
 
 static int fd = -1;
 
-static motor_settings_t left =
-{
-    .forward = true,
-    .speed = 0
-};
+static message_t rx_message = { 0 };
 
-static motor_settings_t right =
-{
-    .forward = true,
-    .speed = 0
-};
-
-static rx_message_t rx_message = { 0 };
-
-static read_state_t read_state = READ_STATE_HEADER;
-
-static uint8_t distance_cm;
+static read_state_t read_state = READ_STATE_IDLE;
 
 /**************************************************
 * Public Functions
@@ -221,42 +215,18 @@ enum motor_status_t motor_control(
     motor_step_count_t step_count
 )
 {
-    enum motor_status_t result = MOTOR_STATUS_BAD_MOTOR;
-    motor_settings_t temp;
-    uint8_t message[MESSAGE_LEN];
-
     printf("In motor_control(motor=%u, speed=%d, steps=%u)\r\n", motor, speed, step_count);
-    
-    /* Allow 1 second of running */
-    set_motor(speed, step_count, &temp);
-
-    if ((motor == MOTOR_LEFT) || (motor == MOTOR_BOTH))
+    uint8_t data[] = { 0xA0, 0xB0, 0xC0, 0xD0 };
+    if (motor == 0)
     {
-        left = temp;
-        printf("Set L=%c%u\r\n",
-               left.forward ? '+' : '-',
-               left.speed
-              );
-        build_message(MOTOR_LEFT, &left, message);
-        result = motor_send_message(message);
+        send_message(MESSAGE_COMMAND_LHS_FWD, sizeof(data), data);
     }
-    if ((motor == MOTOR_RIGHT) || (motor == MOTOR_BOTH))
-    {
-        right = temp;
-        printf("Set R=%c%u\r\n",
-               right.forward ? '+' : '-',
-               right.speed
-              );
-        build_message(MOTOR_RIGHT, &right, message);
-        result = motor_send_message(message);
-    }
-
-    return result;
+    return MOTOR_STATUS_OK;
 }
 
 /**
- * Check the motor controller serial port for ACKs and
- * tick count updates.
+ * Check the motor controller serial port for incoming messages,
+ * dispatching them to the handler when complete.
  *
  * @return An error code
  */
@@ -270,12 +240,40 @@ motor_status_t motor_poll(void)
         if (read_result > 0)
         {
             //printf("Read %zu from serial port\r\n", read_result);
-            size_t index = 0;
-            while(read_result)
+            bool is_escape = false;
+            for (ssize_t index = 0; index < read_result; index++)
             {
-                process_rx_byte(message_buffer[index]);
-                index++;
-                read_result--;
+                const uint8_t data = message_buffer[index];
+                if (is_escape)
+                {
+                    if (data == MESSAGE_ESC_HEADER)
+                    {
+                        // Escaped header => process normally
+                        process_rx_byte(MESSAGE_HEADER);
+                    }
+                    else if (data == MESSAGE_ESC_ESC)
+                    {
+                        process_rx_byte(MESSAGE_ESC);
+                    }
+                    else
+                    {
+                        printf("Bad escape 0x%02x\r\n", data);
+                    }
+                    is_escape = false;
+                }
+                else if (data == MESSAGE_ESC)
+                {
+                    is_escape = true;
+                }
+                else if (data == MESSAGE_HEADER)
+                {
+                    // Unescaped header => start of message
+                    read_state = READ_STATE_COMMAND;
+                }
+                else
+                {
+                    process_rx_byte(data);
+                }
             }
         }
         else if (read_result < 0)
@@ -301,18 +299,7 @@ motor_step_count_t motor_read_steps(
     enum motor_t motor
 )
 {
-    if (motor == MOTOR_LEFT)
-    {
-        return left.last_ticks_remaining;
-    }
-    else if (motor == MOTOR_RIGHT)
-    {
-        return right.last_ticks_remaining;
-    }
-    else
-    {
-        return 0;
-    }
+    return 0;
 }
 
 /**
@@ -322,42 +309,7 @@ motor_step_count_t motor_read_steps(
  */
 unsigned int motor_read_distance(void)
 {
-    return distance_cm;
-}
-
-/**
- * Writes byte array message to serial port.
- *
- * @param[in] p_message MESSAGE_LEN bytes of message
- * @return success or an error
- */
-motor_status_t motor_send_message(const uint8_t *p_message)
-{
-    enum motor_status_t result;
-    if (fd >= 0)
-    {
-        //printf("Writing %u bytes\r\nData: ", MESSAGE_LEN);
-        for(size_t i = 0; i < MESSAGE_LEN; i++)
-        {
-            //printf("%02x ", p_message[i]);
-        }
-        printf("\r\n");
-        ssize_t written = write(fd, p_message, MESSAGE_LEN);
-        if (written == MESSAGE_LEN)
-        {
-            result = MOTOR_STATUS_OK;
-        }
-        else
-        {
-            result = MOTOR_STATUS_SERIAL_ERROR;
-            printf("Serial port error %zd\r\n", written);
-        }
-    }
-    else
-    {
-        result = MOTOR_STATUS_NO_DEVICE;
-    }
-    return result;
+    return 0;
 }
 
 /**************************************************
@@ -365,99 +317,22 @@ motor_status_t motor_send_message(const uint8_t *p_message)
 ***************************************************/
 
 /**
- * Build a message to go over the serial connection.
- *
- * @param[in] motor MOTOR_LEFT or MOTOR_RIGHT
- * @param[in] p_motor Settings for the motor
- * @param[out] p_message The constructed message
- */
-static void build_message(
-    motor_t motor,
-    const motor_settings_t *p_motor,
-    uint8_t *p_message
-)
-{
-    uint8_t control = 0;
-    p_message[MESSAGE_HEADER_OFFSET] = MESSAGE_HEADER;
-    if (motor == MOTOR_LEFT)
-    {
-        control = p_motor->forward ? MESSAGE_CONTROL_LHS_FWD : MESSAGE_CONTROL_LHS_BACK;
-    }
-    else if (motor == MOTOR_RIGHT)
-    {
-        control = p_motor->forward ? MESSAGE_CONTROL_RHS_FWD : MESSAGE_CONTROL_RHS_BACK;
-    }
-    else
-    {
-        fprintf(stderr, "Invalid motor in build_message\r\n");
-        abort();
-    }
-
-    p_message[MESSAGE_CONTROL_OFFSET] = control;
-    /* Speed is 0..320, so we send 0..160 */
-    p_message[MESSAGE_SPEED_OFFSET] = (p_motor->speed >> 1);
-    /* Tick count is 0..320, so we send 0..160 */
-    p_message[MESSAGE_COUNT_OFFSET] = (p_motor->tick_count >> 1);
-    p_message[MESSAGE_CHECKSUM_OFFSET] = calc_checksum(p_message);
-}
-
-/**
  * Calculate the message checksum.
  *
- * XORs the all the bytes bar the last one.
+ * XORs the all the bytes in the given message.
  *
  * @return the calculated checksum
  */
-static uint8_t calc_checksum(const uint8_t *p_message)
+static uint8_t calc_checksum(const message_t* p_message)
 {
     uint8_t result = 0;
-    for (size_t i = 0; i < (MESSAGE_LEN - 1); i++)
+    result ^= (uint8_t) p_message->command;
+    result ^= (uint8_t) p_message->data_len;
+    for (size_t i = 0; i < p_message->data_len; i++)
     {
-        result = result ^ p_message[i];
-    }
-    /* Don't allow checksum to match header byte */
-    if (result == MESSAGE_HEADER)
-    {
-        result = ~result;
+        result ^= p_message->data[i];
     }
     return result;
-}
-
-/**
- * Converts a signed integer speed
- * into the relevant control bits.
- *
- * @param[in] speed -MOTOR_MAX_SPEED..+MOTOR_MAX_SPEED
- * @param[out] p_motor The motor to change
- */
-static void set_motor(int speed, unsigned int tick_count, motor_settings_t *p_motor)
-{
-    if (speed >= 0)
-    {
-        p_motor->forward = true;
-    }
-    else
-    {
-        p_motor->forward = false;
-        speed = abs(speed);
-    }
-
-    if (tick_count > speed)
-    {
-        /* Max one second run time */
-        tick_count = speed;
-    }
-
-    p_motor->tick_count = tick_count;
-
-    if (speed > MOTOR_MAX_SPEED)
-    {
-        p_motor->speed = MOTOR_MAX_SPEED;
-    }
-    else
-    {
-        p_motor->speed = speed;
-    }
 }
 
 /**
@@ -467,30 +342,18 @@ static void set_motor(int speed, unsigned int tick_count, motor_settings_t *p_mo
  *
  * @param[in] p_message The received message
  */
-static void process_rx_message(const rx_message_t* p_message)
+static void process_rx_message(const message_t* p_message)
 {
-    switch(p_message->command)
+    printf("Message %02x: ", p_message->command);
+    for (size_t i = 0; i < p_message->data_len; i++)
     {
-    case MESSAGE_CONTROL_ACK:
-        //printf("ACK\r\n");
-        break;
-    case MESSAGE_CONTROL_LHS_CLICKS:
-        //printf("LHS clicks = %u\r\n", p_message->value);
-        left.last_ticks_remaining = p_message->value;
-        break;
-    case MESSAGE_CONTROL_RHS_CLICKS:
-        //printf("RHS clicks = %u\r\n", p_message->value);
-        right.last_ticks_remaining = p_message->value;
-        break;
-    case MESSAGE_CONTROL_ULTRASOUND:
-        //printf("Distance = %u cm\r\n", p_message->value);
-        distance_cm = p_message->value;
-        break;
+        printf("%02x ", p_message->data[i]);
     }
+    printf("\r\n");
 }
 
 /**
- * Feed incoming bytes through the state machine. 
+ * Feed incoming bytes through the state machine.
  * Will call process_rx_message() when a valid message
  * has been received.
  *
@@ -498,44 +361,49 @@ static void process_rx_message(const rx_message_t* p_message)
  */
 static void process_rx_byte(uint8_t byte)
 {
-    static uint8_t checksum = 0;
-    switch(read_state)
+    switch (read_state)
     {
-    case READ_STATE_HEADER:
-        if (byte == MESSAGE_HEADER)
-        {
-            read_state = READ_STATE_COMMAND;
-            checksum = MESSAGE_HEADER;
-        }
+    case READ_STATE_IDLE:
         break;
     case READ_STATE_COMMAND:
-        switch(byte)
+        switch (byte)
         {
-        case MESSAGE_CONTROL_ACK:
-            rx_message.command = byte;
-            checksum ^= byte;
-            read_state = READ_STATE_CHECKSUM;
+        case MESSAGE_COMMAND_LHS_FWD:
+            rx_message.command = MESSAGE_COMMAND_LHS_FWD;
             break;
-        case MESSAGE_CONTROL_LHS_CLICKS:
-        case MESSAGE_CONTROL_RHS_CLICKS:
-        case MESSAGE_CONTROL_ULTRASOUND:
-            rx_message.command = byte;
-            checksum ^= byte;
-            read_state = READ_STATE_VALUE;
+        case MESSAGE_COMMAND_LHS_BACK:
+            rx_message.command = MESSAGE_COMMAND_LHS_BACK;
+            break;
+        case MESSAGE_COMMAND_RHS_FWD:
+            rx_message.command = MESSAGE_COMMAND_RHS_FWD;
+            break;
+        case MESSAGE_COMMAND_RHS_BACK:
+            rx_message.command = MESSAGE_COMMAND_RHS_BACK;
+            break;
+        case MESSAGE_COMMAND_STATUS:
+            rx_message.command = MESSAGE_COMMAND_STATUS;
             break;
         default:
-            printf("Unknown command %02x\r\n", byte);
-            read_state = READ_STATE_HEADER;
+            read_state = READ_STATE_IDLE;
             break;
         }
+        rx_message.command = (motor_command_t) byte;
+        read_state = READ_STATE_LEN;
         break;
-    case READ_STATE_VALUE:
-        checksum ^= byte;
-        rx_message.value = byte << 1;
-        read_state = READ_STATE_CHECKSUM;
+    case READ_STATE_LEN:
+        rx_message.data_read = 0;
+        rx_message.data_len = byte;
+        read_state = rx_message.data_len ? READ_STATE_DATA : READ_STATE_CHECKSUM;
+        break;
+    case READ_STATE_DATA:
+        rx_message.data[rx_message.data_read++] = byte;
+        if (rx_message.data_read == rx_message.data_len)
+        {
+            read_state = READ_STATE_CHECKSUM;
+        }
         break;
     case READ_STATE_CHECKSUM:
-        if (byte == checksum)
+        if (byte == calc_checksum(&rx_message))
         {
             process_rx_message(&rx_message);
         }
@@ -543,8 +411,72 @@ static void process_rx_byte(uint8_t byte)
         {
             printf("Dropping bad packet\r\n");
         }
-        read_state = READ_STATE_HEADER;
+        read_state = READ_STATE_IDLE;
         break;
+    }
+}
+
+
+/**
+ * Write a message to the UART.
+ *
+ * @param command[in] The command to send
+ * @param data_len[in] The number of bytes in p_data
+ * @param p_data[in] The data for the command
+ */
+static void send_message(motor_command_t command, size_t data_len, const uint8_t* p_data)
+{
+    uint8_t csum = 0;
+
+    if (fd < 0)
+    {
+        return;
+    }
+
+    if (data_len >= 256)
+    {
+        return;
+    }
+
+    uint8_t temp = MESSAGE_HEADER;
+    write(fd, &temp, 1);
+
+    csum ^= (uint8_t) command;
+    write_esc(fd, (uint8_t) command);
+
+    csum ^= (uint8_t) data_len;
+    write_esc(fd, (uint8_t) data_len);
+
+    for (size_t i = 0; i < data_len; i++)
+    {
+        write_esc(fd, p_data[i]);
+        csum ^= (uint8_t) p_data[i];
+    }
+
+    write_esc(fd, csum);
+}
+
+/**
+ * Write a SLIP-encoded byte to the given file descriptor.
+ *
+ * @param fd[in] the open file descriptor
+ * @param data[in] the byte to write
+ */
+static void write_esc(int fd, uint8_t data)
+{
+    if (data == MESSAGE_ESC)
+    {
+        uint8_t data[] = { MESSAGE_ESC, MESSAGE_ESC_ESC };
+        write(fd, data, sizeof(data));
+    }
+    else if (data == MESSAGE_HEADER)
+    {
+        uint8_t data[] = { MESSAGE_ESC, MESSAGE_ESC_HEADER };
+        write(fd, data, sizeof(data));
+    }
+    else
+    {
+        write(fd, &data, 1);
     }
 }
 
