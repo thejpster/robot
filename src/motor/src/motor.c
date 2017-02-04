@@ -73,6 +73,7 @@ typedef enum motor_command_t
 {
     MESSAGE_COMMAND_SPEED_REQ,
     MESSAGE_COMMAND_SPEED_IND,
+    MESSAGE_COMMAND_CURRENT_OVERFLOW_IND,
     MESSAGE_COMMAND_CURRENT_IND,
     MAX_VALID_COMMAND
 } motor_command_t;
@@ -90,6 +91,12 @@ typedef struct message_speed_ind_t
     uint16_t speed;
     uint8_t motor;
 } message_speed_ind_t;
+
+typedef struct message_current_ind_t
+{
+    uint16_t current;
+    uint8_t motor;
+} message_current_ind_t;
 
 typedef struct motor_settings_t
 {
@@ -237,10 +244,10 @@ enum motor_status_t motor_control(
                 .clicks = step_count,
                 .speed = speed
         };
-        send_message(MESSAGE_COMMAND_SPEED_REQ, sizeof(req), &req);
+        send_message(MESSAGE_COMMAND_SPEED_REQ, sizeof(req), (const uint8_t*) &req);
         req.side = 1;
         req.ctx = last_ctx++;
-        send_message(MESSAGE_COMMAND_SPEED_REQ, sizeof(req), &req);
+        send_message(MESSAGE_COMMAND_SPEED_REQ, sizeof(req), (const uint8_t*) &req);
     } else {
         message_speed_req_t req = {
                 .ctx = last_ctx++,
@@ -248,7 +255,7 @@ enum motor_status_t motor_control(
                 .clicks = step_count,
                 .speed = speed
         };
-        send_message(MESSAGE_COMMAND_SPEED_REQ, sizeof(req), &req);
+        send_message(MESSAGE_COMMAND_SPEED_REQ, sizeof(req), (const uint8_t*) &req);
     }
     return MOTOR_STATUS_OK;
 }
@@ -273,6 +280,7 @@ motor_status_t motor_poll(void)
             for (ssize_t index = 0; index < read_result; index++)
             {
                 const uint8_t data = message_buffer[index];
+                // printf("%02x ", data);
                 if (is_escape)
                 {
                     if (data == MESSAGE_ESC_HEADER)
@@ -304,6 +312,7 @@ motor_status_t motor_poll(void)
                     process_rx_byte(data);
                 }
             }
+            // printf("\n");
         }
         else if (read_result < 0)
         {
@@ -354,7 +363,7 @@ unsigned int motor_read_distance(void)
  */
 static uint8_t calc_checksum(const message_t* p_message)
 {
-    uint8_t result = 0;
+    uint8_t result = 0xFF;
     result ^= (uint8_t) p_message->command;
     result ^= (uint8_t) p_message->data_len;
     for (size_t i = 0; i < p_message->data_len; i++)
@@ -373,7 +382,7 @@ static uint8_t calc_checksum(const message_t* p_message)
  */
 static void process_rx_message(const message_t* p_message)
 {
-    printf("Message %02x: ", p_message->command);
+    printf("RX %02x: ", p_message->command);
     for (size_t i = 0; i < p_message->data_len; i++)
     {
         printf("%02x ", p_message->data[i]);
@@ -439,7 +448,7 @@ static void process_rx_byte(uint8_t byte)
  */
 static void send_message(motor_command_t command, size_t data_len, const uint8_t* p_data)
 {
-    uint8_t csum = 0;
+    uint8_t csum = 0xFF;
 
     if (fd < 0)
     {
@@ -450,6 +459,13 @@ static void send_message(motor_command_t command, size_t data_len, const uint8_t
     {
         return;
     }
+
+    printf("TX %02x: ", command);
+    for (size_t i = 0; i < data_len; i++)
+    {
+        printf("%02x ", p_data[i]);
+    }
+    printf("\r\n");
 
     uint8_t temp = MESSAGE_HEADER;
     write(fd, &temp, 1);
