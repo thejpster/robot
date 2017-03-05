@@ -202,8 +202,9 @@ static void mode_menu(void)
 static void mode_remote_control(void)
 {
     char msg[14];
-    int stick_left, stick_right, trim;
+    int stick_left, stick_right;
     int motor_left, motor_right;
+    int current[4] = { 0 };
 
     if (debounce_button())
     {
@@ -212,32 +213,23 @@ static void mode_remote_control(void)
 
     stick_left = dualshock_read_axis(DUALSHOCK_AXIS_LY);
     stick_right = dualshock_read_axis(DUALSHOCK_AXIS_RY);
-    trim = dualshock_read_axis(DUALSHOCK_AXIS_R2);
-
-    if (trim <= 10)
-    {
-        /* We allow 0..MOTOR_MAX_SPEED/2 */
-        trim = 2;
-    }
-    else
-    {
-        /* We allow 0..MOTOR_MAX_SPEED */
-        trim = 1;
-    }
 
     /* max input is +/- 32767 */
     motor_left = (stick_left * MOTOR_MAX_SPEED) / DUALSHOCK_MAX_AXIS_VALUE;
     motor_right = (stick_right * MOTOR_MAX_SPEED) / DUALSHOCK_MAX_AXIS_VALUE;
 
-    motor_left = motor_left / trim;
-    motor_right = motor_right / trim;
-
     sprintf(msg, "L%c%03d %04X", (motor_left < 0) ? '-' : '+', abs(motor_left), (uint16_t) stick_left);
     font_draw_text_small(0, 0, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
     sprintf(msg, "R%c%03d %04X", (motor_right < 0) ? '-' : '+', abs(motor_right), (uint16_t) stick_right);
     font_draw_text_small(0, 10, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
-    sprintf(msg, "Trim:%d", trim);
-    font_draw_text_small(0, 20, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
+
+    for(size_t i = 0; i < 4; i++)
+    {
+        current[i] = motor_current((uint8_t) i) * 100;
+    }
+    // In units of 10mA, so 0mA to 2.55A visible
+    sprintf(msg, "%02x%02x/%02x%02x", current[0], current[1], current[2], current[3]);
+    font_draw_text_small(0, 30, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
     lcd_flush();
 
     enum motor_status_t status;
