@@ -6,6 +6,7 @@ import sys
 import random
 import threading
 import binascii
+import time
 
 # Define notification event for thread completion
 EVT_RESULT_ID = wx.NewId()
@@ -121,7 +122,7 @@ class LCD(wx.Frame):
         dc.SetPen(wx.Pen((0, 0, 0)))
         dc.DrawRectangle(0, 0, WIDTH*SCALE, HEIGHT*SCALE)
         dc.SelectObject(wx.NullBitmap)
-        # del dc # need to get rid of the MemoryDC before Update() is called.
+        del dc # need to get rid of the MemoryDC before Update() is called.
 
     def setBox(self, p1, p2, colour):
         dc = wx.MemoryDC()
@@ -135,42 +136,42 @@ class LCD(wx.Frame):
             print "DrawRectangle(%u,%u,%u,%u) @ %02x%02x%02x" % (x,y,w,h,colour[0],colour[1],colour[2])
         dc.DrawRectangle(x, y, w, h)
         dc.SelectObject(wx.NullBitmap)
-        # del dc # need to get rid of the MemoryDC before Update() is called.
 
     def setBitmap(self, p1, p2, fg, bg, data):
         dc = wx.MemoryDC()
         dc.SelectObject(self.bmp)
         fg_pen = wx.Pen(fg)
+        fg_brush = wx.Brush(fg, wx.SOLID)
         bg_pen = wx.Pen(bg)
-        x, y = p1
-        min_x, min_y = p1
-        max_x, max_y = p2
+        bg_brush = wx.Brush(bg, wx.SOLID)
+        min_x, min_y = p1[0], p1[1]
+        max_x, max_y = p2[0], p2[1]
+        x, y = min_x, min_y
         for b in data:
             byte = ord(b)
             for i in range(8):
                 is_fg = byte & 0x80
                 byte <<= 1
                 if is_fg:
-                    # dc.SetPen(fg_pen)
-                    self.setBox((x,y), (x,y), fg)
+                    dc.SetBrush(fg_brush)
+                    dc.SetPen(fg_pen)
                 else:
-                    # dc.SetPen(bg_pen)
-                    self.setBox((x,y), (x,y), bg)
-                #dc.DrawPoint(x, y)
+                    dc.SetBrush(bg_brush)
+                    dc.SetPen(bg_pen)
+                dc.DrawRectangle(x * SCALE, y * SCALE, SCALE, SCALE)
                 if (x == max_x):
                     x = min_x
                     y += 1
                 else:
                     x += 1
         dc.SelectObject(wx.NullBitmap)
-        # del dc # need to get rid of the MemoryDC before Update() is called.
 
     def setPixel(self, x, y, colour):
         dc = wx.MemoryDC()
         dc.SelectObject(self.bmp)
         dc.SetPen(wx.Pen(colour))
         dc.DrawPoint(x, y)
-        del dc  # need to get rid of the MemoryDC before Update() is called.
+        dc.SelectObject(wx.NullBitmap)
 
     def OnPaint(self, e):
         dc = wx.PaintDC(self)
