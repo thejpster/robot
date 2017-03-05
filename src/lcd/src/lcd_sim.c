@@ -135,7 +135,7 @@ void lcd_deinit(void)
     f = NULL;
 }
 
-/** 
+/**
  * Turn the LCD on (actually, does nothing).
  */
 void lcd_on(void)
@@ -203,7 +203,7 @@ void lcd_paint_mono_rectangle(
     for(size_t i = 0; i < bytes; i++)
     {
         fprintf(f, "%02X", p_pixels[i]);
-    }        
+    }
     fprintf(f, "\n");
     fflush(f);
 }
