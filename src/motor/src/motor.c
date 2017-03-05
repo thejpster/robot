@@ -149,6 +149,8 @@ static message_t rx_message = { 0 };
 
 static read_state_t read_state = READ_STATE_IDLE;
 
+static float currents[4] = { 0 };
+
 /**************************************************
 * Public Functions
 ***************************************************/
@@ -235,7 +237,7 @@ enum motor_status_t motor_control(
 )
 {
     static uint32_t last_ctx = 0;
-    printf("In motor_control(motor=%u, speed=%d, steps=%u)\r\n", motor, speed, step_count);
+    printf("In motor_control(motor=%u, speed=%d, steps=%u)\n", motor, speed, step_count);
     if (motor == MOTOR_BOTH)
     {
         message_speed_req_t req = {
@@ -275,7 +277,7 @@ motor_status_t motor_poll(void)
         ssize_t read_result = read(fd, message_buffer, sizeof(message_buffer));
         if (read_result > 0)
         {
-            //printf("Read %zu from serial port\r\n", read_result);
+            //printf("Read %zu from serial port\n", read_result);
             bool is_escape = false;
             for (ssize_t index = 0; index < read_result; index++)
             {
@@ -294,7 +296,7 @@ motor_status_t motor_poll(void)
                     }
                     else
                     {
-                        printf("Bad escape 0x%02x\r\n", data);
+                        printf("Bad escape 0x%02x\n", data);
                     }
                     is_escape = false;
                 }
@@ -316,7 +318,7 @@ motor_status_t motor_poll(void)
         }
         else if (read_result < 0)
         {
-            printf("Error reading serial port! %zd\r\n", read_result);
+            printf("Error reading serial port! %zd\n", read_result);
             result = MOTOR_STATUS_SERIAL_ERROR;
         }
     }
@@ -338,6 +340,23 @@ motor_step_count_t motor_read_steps(
 )
 {
     return 0;
+}
+
+/**
+ * Find out how much current a motor is using.
+ *
+ * @param[in] motor Which motor to read
+ * @return The amount of current in Amps.
+ */
+float motor_current(
+    uint8_t channel
+)
+{
+    if (channel < NUMELTS(currents)) {
+        return currents[channel];
+    } else {
+        return 0;
+    }
 }
 
 /**
@@ -382,12 +401,45 @@ static uint8_t calc_checksum(const message_t* p_message)
  */
 static void process_rx_message(const message_t* p_message)
 {
-    printf("RX %02x: ", p_message->command);
-    for (size_t i = 0; i < p_message->data_len; i++)
-    {
-        printf("%02x ", p_message->data[i]);
+    // printf("RX %02x: ", p_message->command);
+    // for (size_t i = 0; i < p_message->data_len; i++)
+    // {
+    //     printf("%02x ", p_message->data[i]);
+    // }
+    // printf("\n");
+
+    switch (p_message->command) {
+    case MESSAGE_COMMAND_SPEED_IND:
+        {
+            // printf("Speed ind %zu bytes\n", p_message->data_len);
+            if (p_message->data_len == 3)
+            {
+                message_speed_ind_t ind = { 0 };
+                ind.speed = p_message->data[0] | (p_message->data[0] << 8);
+                ind.motor = p_message->data[2];
+                printf("Speed ind motor %u, speed %u\n", ind.motor, ind.speed);
+            }
+        }
+        break;
+    case MESSAGE_COMMAND_CURRENT_OVERFLOW_IND:
+        printf("Overflow ind %zu bytes\n", p_message->data_len);
+        break;
+    case MESSAGE_COMMAND_CURRENT_IND:
+        {
+            // printf("Current ind %zu bytes\n", p_message->data_len);
+            if (p_message->data_len == 3)
+            {
+                message_current_ind_t ind = { 0 };
+                ind.current = p_message->data[0] | (p_message->data[1] << 8);
+                ind.motor = p_message->data[2];
+                printf("Current ind motor %u, current %f mA (%u)\n", ind.motor, ind.current * 4.9f, ind.current);
+                currents[ind.motor] = (ind.current * 4.9f) / 1000.0f;
+            }
+        }
+        break;
+    default:
+        printf("Unknown command 0x%02x\n", p_message->command);
     }
-    printf("\r\n");
 }
 
 /**
@@ -431,7 +483,7 @@ static void process_rx_byte(uint8_t byte)
         }
         else
         {
-            printf("Dropping bad packet\r\n");
+            printf("Dropping bad packet\n");
         }
         read_state = READ_STATE_IDLE;
         break;
@@ -465,7 +517,7 @@ static void send_message(motor_command_t command, size_t data_len, const uint8_t
     {
         printf("%02x ", p_data[i]);
     }
-    printf("\r\n");
+    printf("\n");
 
     uint8_t temp = MESSAGE_HEADER;
     write(fd, &temp, 1);

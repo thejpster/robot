@@ -161,6 +161,18 @@ motor_step_count_t motor_read_steps(
 );
 
 /**
+ * Find out how much current a channel is using.
+ *
+ * There are four channels.
+ *
+ * @param[in] motor Which motor to read
+ * @return The amount of current in Amps.
+ */
+float motor_current(
+    uint8_t channel
+);
+
+/**
  * Read the latest (smoothed) ultrasound measurement.
  *
  * @return a distance in cm to the nearest object
