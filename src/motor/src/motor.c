@@ -75,6 +75,7 @@ typedef enum motor_command_t
     MESSAGE_COMMAND_SPEED_IND,
     MESSAGE_COMMAND_CURRENT_OVERFLOW_IND,
     MESSAGE_COMMAND_CURRENT_IND,
+    MESSAGE_COMMAND_RANGE_IND,
     MAX_VALID_COMMAND
 } motor_command_t;
 
@@ -91,6 +92,12 @@ typedef struct message_speed_ind_t
     uint16_t speed;
     uint8_t motor;
 } message_speed_ind_t;
+
+typedef struct message_range_ind_t
+{
+    uint16_t range;
+    uint8_t sensor;
+} message_range_ind_t;
 
 typedef struct message_current_ind_t
 {
@@ -237,7 +244,7 @@ enum motor_status_t motor_control(
 )
 {
     static uint32_t last_ctx = 0;
-    printf("In motor_control(motor=%u, speed=%d, steps=%u)\n", motor, speed, step_count);
+    // printf("In motor_control(motor=%u, speed=%d, steps=%u)\n", motor, speed, step_count);
     if (motor == MOTOR_BOTH)
     {
         message_speed_req_t req = {
@@ -415,7 +422,7 @@ static void process_rx_message(const message_t* p_message)
             if (p_message->data_len == 3)
             {
                 message_speed_ind_t ind = { 0 };
-                ind.speed = p_message->data[0] | (p_message->data[0] << 8);
+                ind.speed = p_message->data[0] | (p_message->data[1] << 8);
                 ind.motor = p_message->data[2];
                 printf("Speed ind motor %u, speed %u\n", ind.motor, ind.speed);
             }
@@ -426,14 +433,25 @@ static void process_rx_message(const message_t* p_message)
         break;
     case MESSAGE_COMMAND_CURRENT_IND:
         {
-            // printf("Current ind %zu bytes\n", p_message->data_len);
             if (p_message->data_len == 3)
             {
                 message_current_ind_t ind = { 0 };
                 ind.current = p_message->data[0] | (p_message->data[1] << 8);
                 ind.motor = p_message->data[2];
-                printf("Current ind motor %u, current %f mA (%u)\n", ind.motor, ind.current * 4.9f, ind.current);
+                // printf("Current ind motor %u, current %f mA (%u)\n", ind.motor, ind.current * 4.9f, ind.current);
                 currents[ind.motor] = (ind.current * 4.9f) / 1000.0f;
+            }
+        }
+        break;
+    case MESSAGE_COMMAND_RANGE_IND:
+        {
+            // printf("Range ind %zu bytes\n", p_message->data_len);
+            if (p_message->data_len == 3)
+            {
+                message_range_ind_t ind = { 0 };
+                ind.range = p_message->data[0] | (p_message->data[1] << 8);
+                ind.sensor = p_message->data[2];
+                printf("Range ind sensor %u, range %u cm\n", ind.sensor, ind.range);
             }
         }
         break;
