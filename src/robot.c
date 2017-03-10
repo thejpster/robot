@@ -47,7 +47,7 @@
 ***************************************************/
 
 #ifdef LCD_SIM
-#define LOOPS_PER_SECOND 5
+#define LOOPS_PER_SECOND 10
 #else
 #define LOOPS_PER_SECOND 20
 #endif
