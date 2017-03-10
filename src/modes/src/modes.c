@@ -218,17 +218,19 @@ static void mode_remote_control(void)
     motor_left = (stick_left * MOTOR_MAX_SPEED) / DUALSHOCK_MAX_AXIS_VALUE;
     motor_right = (stick_right * MOTOR_MAX_SPEED) / DUALSHOCK_MAX_AXIS_VALUE;
 
-    sprintf(msg, "L%c%03d %04X", (motor_left < 0) ? '-' : '+', abs(motor_left), (uint16_t) stick_left);
+    sprintf(msg, "%c%03d %c%03d", (motor_left < 0) ? '-' : '+', abs(motor_left), (motor_right < 0) ? '-' : '+', abs(motor_right));
     font_draw_text_small(0, 0, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
-    sprintf(msg, "R%c%03d %04X", (motor_right < 0) ? '-' : '+', abs(motor_right), (uint16_t) stick_right);
-    font_draw_text_small(0, 10, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
 
     for(size_t i = 0; i < 4; i++)
     {
-        current[i] = motor_current((uint8_t) i) * 100;
+        current[i] = motor_current((uint8_t) i) * 1000;
+        if (current[i] > 999) {
+            current[i] = 999;
+        }
     }
-    // In units of 10mA, so 0mA to 2.55A visible
-    sprintf(msg, "%02x%02x/%02x%02x", current[0], current[1], current[2], current[3]);
+    sprintf(msg, "%03d/%03dmA", current[0], current[1]);
+    font_draw_text_small(0, 15, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
+    sprintf(msg, "%03d/%03dmA", current[2], current[3]);
     font_draw_text_small(0, 30, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
     lcd_flush();
 
