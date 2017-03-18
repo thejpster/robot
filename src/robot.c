@@ -130,7 +130,7 @@ int main(int argc, char **argv)
 
     if (retval == 0)
     {
-        const char spinner[] = { '\\', '|', '/', '-'};
+        const char spinner[] = { '.', 'o', 'O', 'o'};
         size_t i = 0;
         printf("Verbose mode is %s\n", verbose_flag ? "on" : "off");
 
