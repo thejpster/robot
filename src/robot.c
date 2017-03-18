@@ -135,6 +135,10 @@ int main(int argc, char **argv)
         printf("Verbose mode is %s\n", verbose_flag ? "on" : "off");
 
         lcd_paint_clear_screen();
+        font_draw_text_small(0, 0, "Init...", LCD_WHITE, LCD_BLACK, FONT_PROPORTIONAL);
+        lcd_flush();
+        sleep(1);
+        lcd_paint_clear_screen();
 
         printf("Init Joystick...\r\n");
         do
@@ -142,7 +146,7 @@ int main(int argc, char **argv)
             char message[10];
             sprintf(message, "Pad? %c", spinner[i]);
             BOUNDS_INCREMENT(i, NUMELTS(spinner), 0);
-            font_draw_text_small(10, 10, message, LCD_WHITE, LCD_BLACK, FONT_PROPORTIONAL);
+            font_draw_text_small(0, 0, message, LCD_WHITE, LCD_BLACK, FONT_PROPORTIONAL);
             lcd_flush();
             retval = dualshock_init(sz_jsdev);
             sleep(1);
