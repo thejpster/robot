@@ -158,6 +158,8 @@ static uint8_t frame_buffer[NUM_STRIPES *LCD_WIDTH];
 static unsigned int top_stripe;
 static unsigned int bottom_stripe;
 
+static bool backlight_on = true;
+
 /**************************************************
 * Public Functions
 ***************************************************/
@@ -202,7 +204,7 @@ int lcd_init(const char *p_filename)
     {
         gpio_make_output(LCD_DC_PIN, 0);
 
-        gpio_make_output(LCD_LED_PIN, 1);
+        gpio_make_output(LCD_LED_PIN, backlight_on ? 1 : 0);
 
         gpio_make_output(LCD_RST_PIN, 0);
         delay_ms(100);
@@ -357,6 +359,14 @@ void lcd_paint_mono_rectangle(
     damage_rows(y1, y2);
 }
 
+/**
+ * Toggles the backlight.
+ */
+void lcd_toggle_backlight(void)
+{
+    backlight_on = !backlight_on;
+    gpio_set_output(LCD_LED_PIN, backlight_on ? 1 : 0);
+}
 
 /**************************************************
 * Private Functions

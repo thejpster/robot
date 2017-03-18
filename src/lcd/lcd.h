@@ -200,6 +200,10 @@ extern void lcd_paint_mono_rectangle(
     const uint8_t *p_pixels
 );
 
+/**
+ * Toggles the backlight.
+ */
+extern void lcd_toggle_backlight(void);
 
 #ifdef __cplusplus
 }

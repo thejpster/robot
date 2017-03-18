@@ -126,7 +126,7 @@ void menu_keypress(enum menu_keypress_t keypress)
             {
                 /* Wrap to top */
                 current_item = 0;
-            }        
+            }
             else
             {
                 current_item += 1;
@@ -138,7 +138,7 @@ void menu_keypress(enum menu_keypress_t keypress)
             {
                 /* Wrap to top */
                 current_item = 0;
-            }        
+            }
             else
             {
                 current_item += 1;

@@ -208,6 +208,14 @@ void lcd_paint_mono_rectangle(
     fflush(f);
 }
 
+/**
+ * Toggles the backlight.
+ */
+void lcd_toggle_backlight(void)
+{
+    /* No backlight to toggle */
+}
+
 
 /**************************************************
 * Private Functions

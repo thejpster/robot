@@ -184,8 +184,8 @@ static void mode_menu(void)
     }
     else if (dualshock_read_button(DUALSHOCK_BUTTON_TRIANGLE))
     {
-        printf("Reboot!\r\n");
-        system("reboot");
+        printf("Backlight toggle!\r\n");
+        lcd_toggle_backlight();
     }
     else if (dualshock_read_button(DUALSHOCK_BUTTON_CIRCLE))
     {
