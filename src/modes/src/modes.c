@@ -191,7 +191,7 @@ static void mode_menu(void)
     {
         printf("Shutting Down!\r\n");
 #ifndef LCD_SIM
-        system("shutdown now");
+        system("sudo poweroff");
 #endif
     }
 }
