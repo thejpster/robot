@@ -59,6 +59,7 @@
 
 #define LCD_DC_PIN GPIO_MAKE_IO_PIN(0, 25)
 #define LCD_RST_PIN GPIO_MAKE_IO_PIN(0, 24)
+#define LCD_LED_PIN GPIO_MAKE_IO_PIN(0, 23)
 
 #define STRIPE_SIZE                 8
 #define NUM_STRIPES                 6
@@ -200,6 +201,8 @@ int lcd_init(const char *p_filename)
     if (retval == 0)
     {
         gpio_make_output(LCD_DC_PIN, 0);
+
+        gpio_make_output(LCD_LED_PIN, 1);
 
         gpio_make_output(LCD_RST_PIN, 0);
         delay_ms(100);
