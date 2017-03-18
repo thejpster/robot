@@ -186,6 +186,7 @@ static void mode_menu(void)
     {
         printf("Backlight toggle!\r\n");
         lcd_toggle_backlight();
+        last_button = DUALSHOCK_BUTTON_TRIANGLE;
     }
     else if (dualshock_read_button(DUALSHOCK_BUTTON_CIRCLE))
     {
