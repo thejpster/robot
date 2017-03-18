@@ -140,7 +140,7 @@ int main(int argc, char **argv)
         do
         {
             char message[10];
-            sprintf(message, "Start pad %c", spinner[i]);
+            sprintf(message, "Pad? %c", spinner[i]);
             BOUNDS_INCREMENT(i, NUMELTS(spinner), 0);
             font_draw_text_small(2, 10, message, LCD_WHITE, LCD_BLACK, FONT_PROPORTIONAL);
             lcd_flush();
