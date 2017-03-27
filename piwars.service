@@ -2,9 +2,7 @@
 Description=PiWars Robot Software
 
 [Service]
-Type=forking
-ExecStart=/usr/bin/screen -d -m -S pwrs /root/robot/bin/pwrs
-ExecStop=/usr/bin/killall pwrs
+ExecStart=/home/jonathan/robot/bin/pwrs --serdev /dev/ttyS0
 
 [Install]
 WantedBy=multi-user.target
