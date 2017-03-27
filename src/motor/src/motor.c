@@ -33,6 +33,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <termios.h>
 #include <unistd.h>
@@ -64,6 +65,14 @@ MESSAGE_ESC    => MESSAGE_ESC MESSAGE_ESC_ESC
 #define MESSAGE_ESC_ESC            0xDD
 
 #define MAX_MESSAGE_LEN 254
+
+// #define VERBOSE
+
+#ifdef VERBOSE
+#define printf_verbose printf
+#else
+#define printf_verbose(...)
+#endif
 
 /**************************************************
 * Data Types
@@ -139,6 +148,7 @@ static void process_rx_message(const message_t* p_message);
 static void process_rx_byte(uint8_t byte);
 static void send_message(motor_command_t command, size_t data_len, const uint8_t* p_data);
 static void write_esc(int fd, uint8_t data);
+static uint32_t get_ts(void);
 
 /**************************************************
 * Public Data
@@ -424,7 +434,7 @@ static void process_rx_message(const message_t* p_message)
                 message_speed_ind_t ind = { 0 };
                 ind.speed = p_message->data[0] | (p_message->data[1] << 8);
                 ind.motor = p_message->data[2];
-                printf("Speed ind motor %u, speed %u\n", ind.motor, ind.speed);
+                printf_verbose("%u: Speed ind motor %u, speed %u\n", get_ts(), ind.motor, ind.speed);
             }
         }
         break;
@@ -438,7 +448,7 @@ static void process_rx_message(const message_t* p_message)
                 message_current_ind_t ind = { 0 };
                 ind.current = p_message->data[0] | (p_message->data[1] << 8);
                 ind.motor = p_message->data[2];
-                // printf("Current ind motor %u, current %f mA (%u)\n", ind.motor, ind.current * 4.9f, ind.current);
+                printf_verbose("%u: Current ind motor %u, current %f mA (%u)\n", get_ts(), ind.motor, ind.current * 4.9f, ind.current);
                 currents[ind.motor] = (ind.current * 4.9f) / 1000.0f;
             }
         }
@@ -451,7 +461,7 @@ static void process_rx_message(const message_t* p_message)
                 message_range_ind_t ind = { 0 };
                 ind.range = p_message->data[0] | (p_message->data[1] << 8);
                 ind.sensor = p_message->data[2];
-                printf("Range ind sensor %u, range %u cm\n", ind.sensor, ind.range);
+                printf_verbose("%u: Range ind sensor %u, range %u cm\n", get_ts(), ind.sensor, ind.range);
             }
         }
         break;
@@ -530,12 +540,12 @@ static void send_message(motor_command_t command, size_t data_len, const uint8_t
         return;
     }
 
-    printf("TX %02x: ", command);
-    for (size_t i = 0; i < data_len; i++)
-    {
-        printf("%02x ", p_data[i]);
-    }
-    printf("\n");
+    //printf("TX %02x: ", command);
+    //for (size_t i = 0; i < data_len; i++)
+    //{
+    //    printf("%02x ", p_data[i]);
+    //}
+    //printf("\n");
 
     uint8_t temp = MESSAGE_HEADER;
     write(fd, &temp, 1);
@@ -578,6 +588,16 @@ static void write_esc(int fd, uint8_t data)
         write(fd, &data, 1);
     }
 }
+
+static uint32_t get_ts(void)
+{
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    uint32_t ms = tv.tv_sec * 1000;
+    ms += tv.tv_usec / 1000;
+    return ms;
+}
+
 
 /**************************************************
 * End of file
