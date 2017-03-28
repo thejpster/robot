@@ -233,10 +233,11 @@ static void mode_remote_control(void)
     snprintf(msg, sizeof(msg) - 1, " %03d  %03d", current_mA[3], current_mA[1]);
     font_draw_text_small(0, 20, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
 
-    uint8_t range_cm[4] = { 0 };
-    for (uint8_t i = 0; i < 4; i++)
+    int range_cm[4] = { 0 };
+    for (int i = 0; i < 4; i++)
     {
-        range_cm[i] = motor_read_distance(i);
+        double range = motor_read_distance(i);
+        range_cm[i] = range > 999 ? 999 : (int) range;
     }
     snprintf(msg, sizeof(msg) - 1, " %03d  %03d", range_cm[0], range_cm[1]);
     font_draw_text_small(0, 30, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);

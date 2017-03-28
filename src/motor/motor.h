@@ -177,7 +177,7 @@ float motor_current(
  *
  * @return a distance in cm to the nearest object
  */
-uint8_t motor_read_distance(uint8_t sensor);
+double motor_read_distance(uint8_t sensor);
 
 #ifdef __cplusplus
 }

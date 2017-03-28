@@ -66,7 +66,9 @@ MESSAGE_ESC    => MESSAGE_ESC MESSAGE_ESC_ESC
 
 #define MAX_MESSAGE_LEN 254
 
-// #define VERBOSE
+#define MICROSECONDS_PER_CM 29.154519
+
+#define VERBOSE
 
 #ifdef VERBOSE
 #define printf_verbose printf
@@ -168,7 +170,7 @@ static read_state_t read_state = READ_STATE_IDLE;
 
 static float currents[4] = { 0 };
 
-static uint8_t range[4] = { 0 };
+static double range_cm[4] = { 0 };
 
 /**************************************************
 * Public Functions
@@ -383,12 +385,12 @@ float motor_current(
  *
  * @return a distance in cm to the nearest object
  */
-uint8_t motor_read_distance(
+double motor_read_distance(
     uint8_t sensor
 )
 {
-    if (sensor < NUMELTS(range)) {
-        return range[sensor];
+    if (sensor < NUMELTS(range_cm)) {
+        return range_cm[sensor];
     } else {
         return 0;
     }
@@ -470,8 +472,12 @@ static void process_rx_message(const message_t* p_message)
                 message_range_ind_t ind = { 0 };
                 ind.range = p_message->data[0] | (p_message->data[1] << 8);
                 ind.sensor = p_message->data[2];
-                printf_verbose("%u: Range ind sensor %u, range %u cm\n", get_ts(), ind.sensor, ind.range);
-                range[ind.sensor] = ind.range;
+                double range = ind.range;
+                range = range / MICROSECONDS_PER_CM;
+                // There and back
+                range = range / 2;
+                range_cm[ind.sensor] = range;
+                printf_verbose("%u: Range ind sensor %u, range %f cm / %u µs\n", get_ts(), ind.sensor, range, ind.range);
             }
         }
         break;
