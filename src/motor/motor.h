@@ -173,11 +173,11 @@ float motor_current(
 );
 
 /**
- * Read the latest (smoothed) ultrasound measurement.
+ * Read the latest ultrasound measurement.
  *
  * @return a distance in cm to the nearest object
  */
-unsigned int motor_read_distance(void);
+uint8_t motor_read_distance(uint8_t sensor);
 
 #ifdef __cplusplus
 }

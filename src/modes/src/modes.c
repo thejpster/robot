@@ -202,37 +202,47 @@ static void mode_menu(void)
  */
 static void mode_remote_control(void)
 {
-    char msg[14];
-    int stick_left, stick_right;
-    int motor_left, motor_right;
-    int current[4] = { 0 };
+    char msg[14] = { 0 };
 
     if (debounce_button())
     {
         return;
     }
 
-    stick_left = dualshock_read_axis(DUALSHOCK_AXIS_LY);
-    stick_right = dualshock_read_axis(DUALSHOCK_AXIS_RY);
+    const int stick_left = dualshock_read_axis(DUALSHOCK_AXIS_LY);
+    const int stick_right = dualshock_read_axis(DUALSHOCK_AXIS_RY);
 
     /* max input is +/- 32767 */
-    motor_left = (stick_left * MOTOR_MAX_SPEED) / DUALSHOCK_MAX_AXIS_VALUE;
-    motor_right = (stick_right * MOTOR_MAX_SPEED) / DUALSHOCK_MAX_AXIS_VALUE;
+    const int motor_left = (stick_left * MOTOR_MAX_SPEED) / DUALSHOCK_MAX_AXIS_VALUE;
+    const int motor_right = (stick_right * MOTOR_MAX_SPEED) / DUALSHOCK_MAX_AXIS_VALUE;
 
-    sprintf(msg, "%c%03d %c%03d", (motor_left < 0) ? '-' : '+', abs(motor_left), (motor_right < 0) ? '-' : '+', abs(motor_right));
+    snprintf(msg, sizeof(msg) - 1, "%c%03d %c%03d", (motor_left < 0) ? '-' : '+', abs(motor_left), (motor_right < 0) ? '-' : '+', abs(motor_right));
     font_draw_text_small(0, 0, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
 
-    for(size_t i = 0; i < 4; i++)
+    int current_mA[4] = { 0 };
+    for (uint8_t i = 0; i < 4; i++)
     {
-        current[i] = motor_current((uint8_t) i) * 1000;
-        if (current[i] > 999) {
-            current[i] = 999;
+        current_mA[i] = 1000 * motor_current(i);
+        if (current_mA[i] > 999)
+        {
+            current_mA[i] = 999;
         }
     }
-    sprintf(msg, "%03d/%03dmA", current[0], current[1]);
-    font_draw_text_small(0, 15, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
-    sprintf(msg, "%03d/%03dmA", current[2], current[3]);
+    snprintf(msg, sizeof(msg) - 1, " %03d  %03d", current_mA[2], current_mA[0]);
+    font_draw_text_small(0, 10, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
+    snprintf(msg, sizeof(msg) - 1, " %03d  %03d", current_mA[3], current_mA[1]);
+    font_draw_text_small(0, 20, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
+
+    uint8_t range_cm[4] = { 0 };
+    for (uint8_t i = 0; i < 4; i++)
+    {
+        range_cm[i] = motor_read_distance(i);
+    }
+    snprintf(msg, sizeof(msg) - 1, " %03d  %03d", range_cm[0], range_cm[1]);
     font_draw_text_small(0, 30, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
+    snprintf(msg, sizeof(msg) - 1, " %03d  %03d", range_cm[2], range_cm[3]);
+    font_draw_text_small(0, 40, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
+
     lcd_flush();
 
     enum motor_status_t status;
@@ -277,10 +287,13 @@ static void mode_test(void)
         return;
     }
     lcd_paint_fill_rectangle(LCD_WHITE, LCD_FIRST_COLUMN, LCD_LAST_COLUMN, LCD_FIRST_ROW, LCD_LAST_ROW);
-    lcd_paint_fill_rectangle(LCD_BLACK, LCD_FIRST_COLUMN+x, LCD_LAST_COLUMN-x, LCD_FIRST_ROW+x, LCD_LAST_ROW-x);
-    if (x == 24) {
+    lcd_paint_fill_rectangle(LCD_BLACK, LCD_FIRST_COLUMN + x, LCD_LAST_COLUMN - x, LCD_FIRST_ROW + x, LCD_LAST_ROW - x);
+    if (x == 24)
+    {
         x = 1;
-    } else {
+    }
+    else
+    {
         x = x + 1;
     }
     if (dualshock_read_button(DUALSHOCK_BUTTON_CROSS))

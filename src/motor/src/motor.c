@@ -168,6 +168,8 @@ static read_state_t read_state = READ_STATE_IDLE;
 
 static float currents[4] = { 0 };
 
+static uint8_t range[4] = { 0 };
+
 /**************************************************
 * Public Functions
 ***************************************************/
@@ -377,13 +379,19 @@ float motor_current(
 }
 
 /**
- * Read the latest (smoothed) ultrasound measurement.
+ * Read the latest ultrasound measurement.
  *
  * @return a distance in cm to the nearest object
  */
-unsigned int motor_read_distance(void)
+uint8_t motor_read_distance(
+    uint8_t sensor
+)
 {
-    return 0;
+    if (sensor < NUMELTS(range)) {
+        return range[sensor];
+    } else {
+        return 0;
+    }
 }
 
 /**************************************************
@@ -440,6 +448,7 @@ static void process_rx_message(const message_t* p_message)
         break;
     case MESSAGE_COMMAND_CURRENT_OVERFLOW_IND:
         printf("Overflow ind %zu bytes\n", p_message->data_len);
+        abort();
         break;
     case MESSAGE_COMMAND_CURRENT_IND:
         {
@@ -462,6 +471,7 @@ static void process_rx_message(const message_t* p_message)
                 ind.range = p_message->data[0] | (p_message->data[1] << 8);
                 ind.sensor = p_message->data[2];
                 printf_verbose("%u: Range ind sensor %u, range %u cm\n", get_ts(), ind.sensor, ind.range);
+                range[ind.sensor] = ind.range;
             }
         }
         break;
