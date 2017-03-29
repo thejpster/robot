@@ -1,8 +1,8 @@
 /*****************************************************
 *
-* Pi Wars Robot Software (PWRS) LCD Driver
+* Pi Wars Robot Software (PWRS) Operating Modes
 *
-* Copyright (c) 2013-2014 theJPster (www.thejpster.org.uk)
+* Copyright (c) 2013-2017 theJPster (www.thejpster.org.uk)
 *
 * PWRS is free software: you can redistribute it and/or modify
 * it under the terms of the GNU General Public License as published by
@@ -34,11 +34,14 @@
 *   * Minimal maze (drive around a maze with high walls autonomously)
 *
 * The motor controller takes speed inputs between zero
-* and 330 ticks per second. We measured 330 ticks/second
+* and 320 ticks per second. We once measured 320 ticks/second
 * as the fastest the motor would go (7.2V, no load).
-* The maximum speed is definable here as we don't want to
-* ask the robot to go faster than it can, otherwise
-* we lose closed-loop feedback control.
+*
+* In an ideal world, the motor controller would perform
+* closed-loop motor speed control. Currently, it just
+* scales the 0-320 value to 0-255 and writes it to the
+* PWM output. Feedback is performed using ultrasonic
+* range sensors and line readers instead.
 *****************************************************/
 
 /**************************************************
@@ -77,13 +80,18 @@
 
 typedef void (*mode_function_t)(void);
 
+struct straight_line_t
+{
+    bool running;
+};
+
 /**************************************************
 * Function Prototypes
 **************************************************/
 
 static void mode_menu(void);
 static void mode_remote_control(void);
-static void mode_test(void);
+static void mode_straight_line(void);
 static void change_mode(mode_function_t new_mode);
 static bool select_mode(
     const struct menu_t *p_menu,
@@ -130,12 +138,16 @@ static const struct menu_t top_menu =
 
 static enum dualshock_button_t last_button = DUALSHOCK_NUM_BUTTONS;
 
+static struct straight_line_t straight_line;
+
 /**************************************************
 * Public Functions
 ***************************************************/
 
 /*
  * Jump to whichever mode we have registered as the current one.
+ *
+ * Will be called LOOPS_PER_SECOND times per second.
  */
 void mode_handle(void)
 {
@@ -233,75 +245,155 @@ static void mode_remote_control(void)
     snprintf(msg, sizeof(msg) - 1, " %03d  %03d", current_mA[3], current_mA[1]);
     font_draw_text_small(0, 20, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
 
-    int range_cm[4] = { 0 };
-    for (int i = 0; i < 4; i++)
+    int range_cm[3] = { 0 };
+    for (int i = 0; i < 3; i++)
     {
         double range = motor_read_distance(i);
         range_cm[i] = range > 999 ? 999 : (int) range;
     }
-    snprintf(msg, sizeof(msg) - 1, " %03d  %03d", range_cm[0], range_cm[1]);
+    snprintf(msg, sizeof(msg) - 1, "   %03d", range_cm[2]);
     font_draw_text_small(0, 30, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
-    snprintf(msg, sizeof(msg) - 1, " %03d  %03d", range_cm[2], range_cm[3]);
+    snprintf(msg, sizeof(msg) - 1, " %03d  %03d", range_cm[0], range_cm[1]);
     font_draw_text_small(0, 40, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
 
     lcd_flush();
 
-    enum motor_status_t status;
+    motor_control(
+        MOTOR_LEFT,
+        motor_left,
+        abs(motor_left)
+    );
 
-    status = motor_control(
-                 MOTOR_LEFT,
-                 motor_left,
-                 abs(motor_left)
-             );
-
-    if (status != MOTOR_STATUS_OK)
-    {
-        printf("Error writing to serial port: %u\r\n", status);
-    }
-
-    status = motor_control(
-                 MOTOR_RIGHT,
-                 motor_right,
-                 abs(motor_right)
-             );
-
-    if (status != MOTOR_STATUS_OK)
-    {
-        printf("Error writing to serial port: %u\r\n", status);
-    }
+    motor_control(
+        MOTOR_RIGHT,
+        motor_right,
+        abs(motor_right)
+    );
 
     if (dualshock_read_button(DUALSHOCK_BUTTON_CROSS))
     {
         last_button = DUALSHOCK_BUTTON_CROSS;
         change_mode(mode_menu);
+    }
+
+    if (dualshock_read_button(DUALSHOCK_BUTTON_TRIANGLE))
+    {
+        printf("Backlight toggle!\r\n");
+        lcd_toggle_backlight();
+        last_button = DUALSHOCK_BUTTON_TRIANGLE;
     }
 }
 
 /**
- * Tests the LCD.
+ * Straight line mode.
  */
-static void mode_test(void)
+static void mode_straight_line(void)
 {
-    static int x = 1;
+    char msg[14] = { 0 };
+
     if (debounce_button())
     {
         return;
     }
-    lcd_paint_fill_rectangle(LCD_WHITE, LCD_FIRST_COLUMN, LCD_LAST_COLUMN, LCD_FIRST_ROW, LCD_LAST_ROW);
-    lcd_paint_fill_rectangle(LCD_BLACK, LCD_FIRST_COLUMN + x, LCD_LAST_COLUMN - x, LCD_FIRST_ROW + x, LCD_LAST_ROW - x);
-    if (x == 24)
+
+    int range_cm[3] = { 0 };
+    for (int i = 0; i < 3; i++)
     {
-        x = 1;
+        double range = motor_read_distance(i);
+        range_cm[i] = range > 999 ? 999 : (int) range;
+    }
+    snprintf(msg, sizeof(msg) - 1, "   %03d", range_cm[2]);
+    font_draw_text_small(0, 30, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
+    snprintf(msg, sizeof(msg) - 1, " %03d  %03d", range_cm[0], range_cm[1]);
+    font_draw_text_small(0, 40, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
+
+    int current_mA[4] = { 0 };
+    for (uint8_t i = 0; i < 4; i++)
+    {
+        current_mA[i] = 1000 * motor_current(i);
+        if (current_mA[i] > 999)
+        {
+            current_mA[i] = 999;
+        }
+    }
+    snprintf(msg, sizeof(msg) - 1, " %03d  %03d", current_mA[2], current_mA[0]);
+    font_draw_text_small(0, 10, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
+    snprintf(msg, sizeof(msg) - 1, " %03d  %03d", current_mA[3], current_mA[1]);
+    font_draw_text_small(0, 20, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
+
+    // Calculate balance - i.e. how far off centre the robot is
+    // 0.5 is dead straight.
+    // < 0.5 means robot is closer to left wall and should go right
+    // > 0.5 means robot is closer to right wall and should go left
+    double range_left = motor_read_distance(0);
+    double range_right = motor_read_distance(1);
+    double range_front = motor_read_distance(2);
+    double total = range_left + range_right;
+    double balance = range_left / total;
+
+    if (range_front < 30)
+    {
+        // Hit the end!
+        straight_line.running = false;
+    }
+
+    unsigned int motor_left = 0;
+    unsigned int motor_right = 0;
+
+    if (balance > 0.5)
+    {
+        // Need to go left a bit
+        motor_right = 255;
+        motor_left = 128 / balance;
     }
     else
     {
-        x = x + 1;
+        // Need to go right a bit
+        motor_left = 255;
+        motor_right = 128 / (1 - balance);
     }
+
+    snprintf(msg, sizeof(msg) - 1, "%c%03d %c%03d", (motor_left < 0) ? '-' : '+', abs(motor_left), (motor_right < 0) ? '-' : '+', abs(motor_right));
+    font_draw_text_small(0, 0, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
+
+    if (!straight_line.running)
+    {
+        // Force speed to be zero
+        motor_left = 0;
+        motor_right = 0;
+    }
+
+    motor_control(
+        MOTOR_LEFT,
+        motor_left,
+        abs(motor_left)
+    );
+
+    motor_control(
+        MOTOR_RIGHT,
+        motor_right,
+        abs(motor_right)
+    );
+
     if (dualshock_read_button(DUALSHOCK_BUTTON_CROSS))
     {
         last_button = DUALSHOCK_BUTTON_CROSS;
         change_mode(mode_menu);
     }
+
+    if (dualshock_read_button(DUALSHOCK_BUTTON_TRIANGLE))
+    {
+        lcd_toggle_backlight();
+        last_button = DUALSHOCK_BUTTON_TRIANGLE;
+    }
+
+    if (dualshock_read_button(DUALSHOCK_BUTTON_START))
+    {
+        straight_line.running = ! straight_line.running;
+        last_button = DUALSHOCK_BUTTON_START;
+    }
+
+    lcd_flush();
 }
 
 /*
@@ -332,17 +424,16 @@ static bool select_mode(
     else if (p_menu_item == &top_menu_items[1])
     {
         /* Test mode (for now) */
-        change_mode(mode_test);
+        change_mode(mode_straight_line);
+        straight_line.running = false;
     }
     else if (p_menu_item == &top_menu_items[2])
     {
-        /* Test mode (for now) */
-        change_mode(mode_test);
+
     }
     else if (p_menu_item == &top_menu_items[3])
     {
-        /* Spin mode (tet mode) */
-        change_mode(mode_test);
+
     }
     else
     {
