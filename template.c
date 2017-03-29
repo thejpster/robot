@@ -2,7 +2,7 @@
 *
 * Pi Wars Robot Software (PWRS) LCD Driver
 *
-* Copyright (c) 2013-2014 theJPster (www.thejpster.org.uk)
+* Copyright (c) 2013-2017 theJPster (www.thejpster.org.uk)
 *
 * PWRS is free software: you can redistribute it and/or modify
 * it under the terms of the GNU General Public License as published by
