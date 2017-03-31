@@ -359,12 +359,12 @@ static void mode_line_follow(void)
     // Black = low, White = high
     if (!gpio_read_input(LINE_SENSOR_LEFT))
     {
-        motor_left = 0;
+        motor_left = -motor_left;
     }
 
     if (!gpio_read_input(LINE_SENSOR_RIGHT))
     {
-        motor_right = 0;
+        motor_right = -motor_right;
     }
 
     render_text(motor_left, motor_right);
