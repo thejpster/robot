@@ -150,7 +150,10 @@ static void process_rx_message(const message_t* p_message);
 static void process_rx_byte(uint8_t byte);
 static void send_message(motor_command_t command, size_t data_len, const uint8_t* p_data);
 static void write_esc(int fd, uint8_t data);
+
+#ifdef VERBOSE
 static uint32_t get_ts(void);
+#endif
 
 /**************************************************
 * Public Data
@@ -170,7 +173,7 @@ static read_state_t read_state = READ_STATE_IDLE;
 
 static float currents[4] = { 0 };
 
-static double range_cm[4] = { 0 };
+static double range_cm[3] = { 10, 10, 10 };
 
 /**************************************************
 * Public Functions
@@ -253,18 +256,25 @@ void motor_close(void)
  */
 enum motor_status_t motor_control(
     motor_t motor,
-    motor_speed_t speed,
-    motor_step_count_t step_count
+    motor_speed_t speed
 )
 {
     static uint32_t last_ctx = 0;
     // printf("In motor_control(motor=%u, speed=%d, steps=%u)\n", motor, speed, step_count);
+    if (speed > MOTOR_MAX_SPEED)
+    {
+        speed = MOTOR_MAX_SPEED;
+    }
+    if (speed < -MOTOR_MAX_SPEED)
+    {
+        speed = -MOTOR_MAX_SPEED;
+    }
     if (motor == MOTOR_BOTH)
     {
         message_speed_req_t req = {
                 .ctx = last_ctx++,
                 .side = 0,
-                .clicks = step_count,
+                .clicks = 0,
                 .speed = speed
         };
         send_message(MESSAGE_COMMAND_SPEED_REQ, sizeof(req), (const uint8_t*) &req);
@@ -275,7 +285,7 @@ enum motor_status_t motor_control(
         message_speed_req_t req = {
                 .ctx = last_ctx++,
                 .side = (motor == MOTOR_LEFT) ? 0 : 1,
-                .clicks = step_count,
+                .clicks = 0,
                 .speed = speed
         };
         send_message(MESSAGE_COMMAND_SPEED_REQ, sizeof(req), (const uint8_t*) &req);
@@ -348,19 +358,6 @@ motor_status_t motor_poll(void)
         result = MOTOR_STATUS_NO_DEVICE;
     }
     return result;
-}
-
-/**
- * Find out how many ticks are left from the last command.
- *
- * @param[in] motor Which motor to read
- * @return The number of ticks left
- */
-motor_step_count_t motor_read_steps(
-    enum motor_t motor
-)
-{
-    return 0;
 }
 
 /**
@@ -441,10 +438,12 @@ static void process_rx_message(const message_t* p_message)
             // printf("Speed ind %zu bytes\n", p_message->data_len);
             if (p_message->data_len == 3)
             {
+#ifdef VERBOSE
                 message_speed_ind_t ind = { 0 };
                 ind.speed = p_message->data[0] | (p_message->data[1] << 8);
                 ind.motor = p_message->data[2];
                 printf_verbose("%u: Speed ind motor %u, speed %u\n", get_ts(), ind.motor, ind.speed);
+#endif
             }
         }
         break;
@@ -605,6 +604,7 @@ static void write_esc(int fd, uint8_t data)
     }
 }
 
+#ifdef VERBOSE
 static uint32_t get_ts(void)
 {
     struct timeval tv;
@@ -613,7 +613,7 @@ static uint32_t get_ts(void)
     ms += tv.tv_usec / 1000;
     return ms;
 }
-
+#endif
 
 /**************************************************
 * End of file

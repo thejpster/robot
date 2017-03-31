@@ -56,23 +56,19 @@
 #include "dualshock/dualshock.h"
 #include "menu/menu.h"
 #include "font/font.h"
+#include "gpio/gpio.h"
 #include "lcd/lcd.h"
 #include "motor/motor.h"
-#include "line_follower/server.h"
 
-#include <modes/modes.h>
+#include "modes/modes.h"
 
 /**************************************************
 * Defines
 ***************************************************/
 
-/* There are 1000 ticks per three wheel rotations */
-/* Wheels are 60mm diameter => ~188mm circumference */
-/* => 1000 mm = ~5.3 wheel turns = ~1773 ticks */
-
-#define MM_TO_TICKS(x) (((x) * 1773) / 1000)
-/* @todo change this! */
-#define TURN_90 (233)
+#define LINE_SENSOR_LEFT GPIO_MAKE_IO_PIN(0, 21)
+#define LINE_SENSOR_RIGHT GPIO_MAKE_IO_PIN(0, 20)
+#define LINE_SENSOR_POWER GPIO_MAKE_IO_PIN(0, 26)
 
 /**************************************************
 * Data Types
@@ -85,6 +81,11 @@ struct straight_line_t
     bool running;
 };
 
+struct line_follow_t
+{
+    bool running;
+};
+
 /**************************************************
 * Function Prototypes
 **************************************************/
@@ -92,6 +93,8 @@ struct straight_line_t
 static void mode_menu(void);
 static void mode_remote_control(void);
 static void mode_straight_line(void);
+static void mode_line_follow(void);
+static void render_text(int motor_left, int motor_right);
 static void change_mode(mode_function_t new_mode);
 static bool select_mode(
     const struct menu_t *p_menu,
@@ -140,9 +143,23 @@ static enum dualshock_button_t last_button = DUALSHOCK_NUM_BUTTONS;
 
 static struct straight_line_t straight_line;
 
+static struct line_follow_t line_follow;
+
+static char msg[14] = { 0 };
+
 /**************************************************
 * Public Functions
 ***************************************************/
+
+/*
+ * Setup pins as required.
+ */
+void mode_init(void)
+{
+    gpio_make_output(LINE_SENSOR_POWER, 0);
+    gpio_make_input(LINE_SENSOR_LEFT);
+    gpio_make_input(LINE_SENSOR_RIGHT);
+}
 
 /*
  * Jump to whichever mode we have registered as the current one.
@@ -214,8 +231,6 @@ static void mode_menu(void)
  */
 static void mode_remote_control(void)
 {
-    char msg[14] = { 0 };
-
     if (debounce_button())
     {
         return;
@@ -228,47 +243,11 @@ static void mode_remote_control(void)
     const int motor_left = (stick_left * MOTOR_MAX_SPEED) / DUALSHOCK_MAX_AXIS_VALUE;
     const int motor_right = (stick_right * MOTOR_MAX_SPEED) / DUALSHOCK_MAX_AXIS_VALUE;
 
-    snprintf(msg, sizeof(msg) - 1, "%c%03d %c%03d", (motor_left < 0) ? '-' : '+', abs(motor_left), (motor_right < 0) ? '-' : '+', abs(motor_right));
-    font_draw_text_small(0, 0, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
+    render_text(motor_left, motor_right);
 
-    int current_mA[4] = { 0 };
-    for (uint8_t i = 0; i < 4; i++)
-    {
-        current_mA[i] = 1000 * motor_current(i);
-        if (current_mA[i] > 999)
-        {
-            current_mA[i] = 999;
-        }
-    }
-    snprintf(msg, sizeof(msg) - 1, " %03d  %03d", current_mA[2], current_mA[0]);
-    font_draw_text_small(0, 10, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
-    snprintf(msg, sizeof(msg) - 1, " %03d  %03d", current_mA[3], current_mA[1]);
-    font_draw_text_small(0, 20, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
+    motor_control(MOTOR_LEFT, motor_left);
 
-    int range_cm[3] = { 0 };
-    for (int i = 0; i < 3; i++)
-    {
-        double range = motor_read_distance(i);
-        range_cm[i] = range > 999 ? 999 : (int) range;
-    }
-    snprintf(msg, sizeof(msg) - 1, "   %03d", range_cm[2]);
-    font_draw_text_small(0, 30, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
-    snprintf(msg, sizeof(msg) - 1, " %03d  %03d", range_cm[0], range_cm[1]);
-    font_draw_text_small(0, 40, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
-
-    lcd_flush();
-
-    motor_control(
-        MOTOR_LEFT,
-        motor_left,
-        abs(motor_left)
-    );
-
-    motor_control(
-        MOTOR_RIGHT,
-        motor_right,
-        abs(motor_right)
-    );
+    motor_control(MOTOR_RIGHT, motor_right);
 
     if (dualshock_read_button(DUALSHOCK_BUTTON_CROSS))
     {
@@ -282,6 +261,8 @@ static void mode_remote_control(void)
         lcd_toggle_backlight();
         last_button = DUALSHOCK_BUTTON_TRIANGLE;
     }
+
+    lcd_flush();
 }
 
 /**
@@ -289,37 +270,10 @@ static void mode_remote_control(void)
  */
 static void mode_straight_line(void)
 {
-    char msg[14] = { 0 };
-
     if (debounce_button())
     {
         return;
     }
-
-    int range_cm[3] = { 0 };
-    for (int i = 0; i < 3; i++)
-    {
-        double range = motor_read_distance(i);
-        range_cm[i] = range > 999 ? 999 : (int) range;
-    }
-    snprintf(msg, sizeof(msg) - 1, "   %03d", range_cm[2]);
-    font_draw_text_small(0, 30, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
-    snprintf(msg, sizeof(msg) - 1, " %03d  %03d", range_cm[0], range_cm[1]);
-    font_draw_text_small(0, 40, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
-
-    int current_mA[4] = { 0 };
-    for (uint8_t i = 0; i < 4; i++)
-    {
-        current_mA[i] = 1000 * motor_current(i);
-        if (current_mA[i] > 999)
-        {
-            current_mA[i] = 999;
-        }
-    }
-    snprintf(msg, sizeof(msg) - 1, " %03d  %03d", current_mA[2], current_mA[0]);
-    font_draw_text_small(0, 10, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
-    snprintf(msg, sizeof(msg) - 1, " %03d  %03d", current_mA[3], current_mA[1]);
-    font_draw_text_small(0, 20, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
 
     // Calculate balance - i.e. how far off centre the robot is
     // 0.5 is dead straight.
@@ -343,18 +297,17 @@ static void mode_straight_line(void)
     if (balance > 0.5)
     {
         // Need to go left a bit
-        motor_right = 255;
-        motor_left = 128 / balance;
+        motor_right = MOTOR_MAX_SPEED;
+        motor_left = (MOTOR_MAX_SPEED / 2) / balance;
     }
     else
     {
         // Need to go right a bit
-        motor_left = 255;
-        motor_right = 128 / (1 - balance);
+        motor_left = MOTOR_MAX_SPEED;
+        motor_right = (MOTOR_MAX_SPEED / 2) / (1 - balance);
     }
 
-    snprintf(msg, sizeof(msg) - 1, "%c%03d %c%03d", (motor_left < 0) ? '-' : '+', abs(motor_left), (motor_right < 0) ? '-' : '+', abs(motor_right));
-    font_draw_text_small(0, 0, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
+    render_text(motor_left, motor_right);
 
     if (!straight_line.running)
     {
@@ -363,20 +316,13 @@ static void mode_straight_line(void)
         motor_right = 0;
     }
 
-    motor_control(
-        MOTOR_LEFT,
-        motor_left,
-        abs(motor_left)
-    );
+    motor_control(MOTOR_LEFT, motor_left);
 
-    motor_control(
-        MOTOR_RIGHT,
-        motor_right,
-        abs(motor_right)
-    );
+    motor_control(MOTOR_RIGHT, motor_right);
 
     if (dualshock_read_button(DUALSHOCK_BUTTON_CROSS))
     {
+        gpio_set_output(LINE_SENSOR_POWER, 0);
         last_button = DUALSHOCK_BUTTON_CROSS;
         change_mode(mode_menu);
     }
@@ -393,6 +339,98 @@ static void mode_straight_line(void)
         last_button = DUALSHOCK_BUTTON_START;
     }
 
+    lcd_flush();
+}
+
+/**
+ * Line following mode.
+ */
+static void mode_line_follow(void)
+{
+    if (debounce_button())
+    {
+        return;
+    }
+
+    // Read line sensors
+    unsigned int motor_left = MOTOR_MAX_SPEED / 2;
+    unsigned int motor_right = MOTOR_MAX_SPEED / 2;
+
+    // Black = low, White = high
+    if (!gpio_read_input(LINE_SENSOR_LEFT))
+    {
+        motor_left = 0;
+    }
+
+    if (!gpio_read_input(LINE_SENSOR_RIGHT))
+    {
+        motor_right = 0;
+    }
+
+    render_text(motor_left, motor_right);
+
+    if (!line_follow.running)
+    {
+        // Force speed to be zero
+        motor_left = 0;
+        motor_right = 0;
+    }
+
+    motor_control(MOTOR_LEFT, motor_left);
+
+    motor_control(MOTOR_RIGHT, motor_right);
+
+    if (dualshock_read_button(DUALSHOCK_BUTTON_CROSS))
+    {
+        last_button = DUALSHOCK_BUTTON_CROSS;
+        change_mode(mode_menu);
+    }
+
+    if (dualshock_read_button(DUALSHOCK_BUTTON_TRIANGLE))
+    {
+        lcd_toggle_backlight();
+        last_button = DUALSHOCK_BUTTON_TRIANGLE;
+    }
+
+    if (dualshock_read_button(DUALSHOCK_BUTTON_START))
+    {
+        line_follow.running = ! line_follow.running;
+        last_button = DUALSHOCK_BUTTON_START;
+    }
+
+    lcd_flush();
+}
+
+/*
+ * Put information on the screen.
+ */
+static void render_text(int motor_left, int motor_right)
+{
+    snprintf(msg, sizeof(msg) - 1, "%c%03d %c%03d", (motor_left < 0) ? '-' : '+', abs(motor_left), (motor_right < 0) ? '-' : '+', abs(motor_right));
+    font_draw_text_small(0, 0, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
+    int current_mA[4] = { 0 };
+    for (uint8_t i = 0; i < 4; i++)
+    {
+        current_mA[i] = 1000 * motor_current(i);
+        if (current_mA[i] > 999)
+        {
+            current_mA[i] = 999;
+        }
+    }
+    snprintf(msg, sizeof(msg) - 1, " %03d  %03d", current_mA[2], current_mA[0]);
+    font_draw_text_small(0, 10, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
+    snprintf(msg, sizeof(msg) - 1, " %03d  %03d", current_mA[3], current_mA[1]);
+    font_draw_text_small(0, 20, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
+    int range_cm[3] = { 0 };
+    for (int i = 0; i < 3; i++)
+    {
+        double range = motor_read_distance(i);
+        range_cm[i] = range > 999 ? 999 : (int) range;
+    }
+    snprintf(msg, sizeof(msg) - 1, "   %03d", range_cm[2]);
+    font_draw_text_small(0, 30, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
+    snprintf(msg, sizeof(msg) - 1, " %03d  %03d", range_cm[0], range_cm[1]);
+    font_draw_text_small(0, 40, msg, LCD_WHITE, LCD_BLACK, FONT_MONOSPACE);
     lcd_flush();
 }
 
@@ -433,7 +471,9 @@ static bool select_mode(
     }
     else if (p_menu_item == &top_menu_items[3])
     {
-
+        gpio_set_output(LINE_SENSOR_POWER, 1);
+        change_mode(mode_line_follow);
+        line_follow.running = false;
     }
     else
     {

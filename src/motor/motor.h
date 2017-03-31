@@ -43,7 +43,7 @@ extern "C" {
 * Public Defines
 ***************************************************/
 
-#define MOTOR_MAX_SPEED 320 
+#define MOTOR_MAX_SPEED 320
 
 #define MESSAGE_LEN 5
 
@@ -68,12 +68,9 @@ typedef enum motor_t
 } motor_t;
 
 /* Positive is forwards, negative is reverse */
-/* Valid range is -32768..32767 */
+/* Valid range is -MOTOR_MAX_SPEED..+MOTOR_MAX_SPEED */
 /* Outside of this is clipped */
 typedef int motor_speed_t;
-
-/* Must be greater than zero. */
-typedef uint16_t motor_step_count_t;
 
 /**************************************************
 * Public Data
@@ -113,31 +110,15 @@ extern void motor_close(void);
  * Control the motor(s)
  *
  * A speed of zero stops the motor. Positive speeds move
- * the robot forwards, negative backwards. You must also place
- * an upper bound on the number of steps the motor can rotate
- * though before it will come to a halt. This is
- * useful to a) guard against the Pi crashing (the robot will
- * automatically come to a stop after a short while) or b)
- * dead reckoning your way around a course.
+ * the robot forwards, negative backwards.
  *
- * A 'step' is one transition on the quadrature encoder. The
- * amount of distance the robot covers is TBD.
- *
- * A call to this function supercedes any previous commands
- * received for the specified motor(s). i.e. if you ask
- * for 100 steps at maximum speed on both motors, and then
- * full stop on the left motor, the right motor will carry on
- * until the 100 steps are complete.
- * 
  * @param[in] motor Which motor to set.
  * @param[in] speed The motor speed. +ve is forwards, -ve is reverse.
- * @param[in] steps The number of steps to take before stopping.
  * @return An error code
  */
 extern enum motor_status_t motor_control(
     enum motor_t motor,
-    motor_speed_t speed,
-    motor_step_count_t step_count
+    motor_speed_t speed
 );
 
 /**
@@ -148,17 +129,6 @@ extern enum motor_status_t motor_control(
  * @return An error code
  */
 motor_status_t motor_poll(void);
-
-
-/**
- * Find out how many ticks are left from the last command.
- *
- * @param[in] motor Which motor to read
- * @return The number of ticks left
- */
-motor_step_count_t motor_read_steps(
-    enum motor_t motor
-);
 
 /**
  * Find out how much current a channel is using.

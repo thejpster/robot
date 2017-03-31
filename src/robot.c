@@ -109,6 +109,7 @@ int main(int argc, char **argv)
     printf("Welcome to PWRS\r\n");
 
     gpio_init();
+    mode_init();
 
     retval = process_arguments(argc, argv);
 
@@ -162,9 +163,6 @@ int main(int argc, char **argv)
             .tv_usec = (1000 * 1000) / LOOPS_PER_SECOND
         };
         struct timeval loop_delay = delay_master;
-        bool led_state = 1;
-        gpio_io_pin_t led = GPIO_MAKE_IO_PIN(GPIO_PORT_A, 18);
-        gpio_make_output(led, 0);
         while(1)
             {
             dualshock_read_or_timeout(&loop_delay);
@@ -172,8 +170,6 @@ int main(int argc, char **argv)
             {
                 motor_poll();
                 mode_handle();
-                gpio_set_output(led, led_state);
-                led_state = !led_state;
                 loop_delay = delay_master;
             }
         }

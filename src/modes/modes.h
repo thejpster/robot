@@ -57,6 +57,11 @@ extern "C" {
 ***************************************************/
 
 /*
+ * Call once on startup.
+ */
+void mode_init(void);
+
+/*
  * Call this periodically to do whatever needs to be done
  * in this mode. Will exit promptly.
  */
