@@ -83,6 +83,7 @@ struct straight_line_t
 
 struct line_follow_t
 {
+    int speed;
     bool running;
 };
 
@@ -143,7 +144,10 @@ static enum dualshock_button_t last_button = DUALSHOCK_NUM_BUTTONS;
 
 static struct straight_line_t straight_line;
 
-static struct line_follow_t line_follow;
+static struct line_follow_t line_follow = {
+    .speed = 50,
+    .running = false
+};
 
 static char msg[14] = { 0 };
 
@@ -168,7 +172,7 @@ void mode_init(void)
  */
 void mode_handle(void)
 {
-    current_mode();
+   current_mode();
 }
 
 /**************************************************
@@ -349,8 +353,8 @@ static void mode_line_follow(void)
     }
 
     // Read line sensors
-    unsigned int motor_left = MOTOR_MAX_SPEED / 4;
-    unsigned int motor_right = MOTOR_MAX_SPEED / 4;
+    int motor_left = line_follow.speed;
+    int motor_right = line_follow.speed;
 
     // Black = low, White = high
     if (!gpio_read_input(LINE_SENSOR_LEFT))
@@ -392,6 +396,18 @@ static void mode_line_follow(void)
     {
         line_follow.running = ! line_follow.running;
         last_button = DUALSHOCK_BUTTON_START;
+    }
+
+    if (dualshock_read_button(DUALSHOCK_BUTTON_UP))
+    {
+        line_follow.speed += 5;
+        last_button = DUALSHOCK_BUTTON_UP;
+    }
+
+    if (dualshock_read_button(DUALSHOCK_BUTTON_DOWN))
+    {
+        line_follow.speed -= 5;
+        last_button = DUALSHOCK_BUTTON_DOWN;
     }
 }
 
