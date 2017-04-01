@@ -261,8 +261,6 @@ static void mode_remote_control(void)
         lcd_toggle_backlight();
         last_button = DUALSHOCK_BUTTON_TRIANGLE;
     }
-
-    lcd_flush();
 }
 
 /**
@@ -338,8 +336,6 @@ static void mode_straight_line(void)
         straight_line.running = ! straight_line.running;
         last_button = DUALSHOCK_BUTTON_START;
     }
-
-    lcd_flush();
 }
 
 /**
@@ -353,8 +349,8 @@ static void mode_line_follow(void)
     }
 
     // Read line sensors
-    unsigned int motor_left = MOTOR_MAX_SPEED / 2;
-    unsigned int motor_right = MOTOR_MAX_SPEED / 2;
+    unsigned int motor_left = MOTOR_MAX_SPEED / 4;
+    unsigned int motor_right = MOTOR_MAX_SPEED / 4;
 
     // Black = low, White = high
     if (!gpio_read_input(LINE_SENSOR_LEFT))
@@ -397,8 +393,6 @@ static void mode_line_follow(void)
         line_follow.running = ! line_follow.running;
         last_button = DUALSHOCK_BUTTON_START;
     }
-
-    lcd_flush();
 }
 
 /*
