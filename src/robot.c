@@ -49,7 +49,7 @@
 #ifdef LCD_SIM
 #define LOOPS_PER_SECOND 10
 #else
-#define LOOPS_PER_SECOND 20
+#define LOOPS_PER_SECOND 33
 #endif
 
 /**************************************************
@@ -81,16 +81,16 @@ static struct option long_options[] =
     {"verbose", no_argument,       &verbose_flag, 1},
     {"help",    no_argument,       0, 'h'},
     {"jsdev",   required_argument, 0, 'j'},
-    {"lcd",     required_argument, 0, 'l'},
-    {"serdev",   required_argument, 0, 's'},
+    {"lcddev",  required_argument, 0, 'l'},
+    {"serdev",  required_argument, 0, 's'},
     { 0 }
 };
 
 static const char *short_options = "vhj:l:s:";
 
 static const char *sz_jsdev = "/dev/input/js0";
-static const char *sz_lcddev = "/dev/spidev0.0";
-static const char* sz_serdev = "/dev/ttyAMA0";
+static const char *sz_lcddev = "/dev/spidev0.1";
+static const char* sz_serdev = "/dev/ttyS0";
 
 /**************************************************
 * Public Functions

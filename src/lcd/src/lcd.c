@@ -57,9 +57,9 @@
 #define DEFAULT_BIAS 4
 #define DEFAULT_CONTRAST 60
 
-#define LCD_DC_PIN GPIO_MAKE_IO_PIN(0, 25)
-#define LCD_RST_PIN GPIO_MAKE_IO_PIN(0, 24)
-#define LCD_LED_PIN GPIO_MAKE_IO_PIN(0, 23)
+#define LCD_DC_PIN GPIO_MAKE_IO_PIN(0, 17)
+#define LCD_RST_PIN GPIO_MAKE_IO_PIN(0, 27)
+#define LCD_LED_PIN GPIO_MAKE_IO_PIN(0, 22)
 
 #define STRIPE_SIZE                 8
 #define NUM_STRIPES                 6
