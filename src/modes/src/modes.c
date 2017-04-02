@@ -338,6 +338,225 @@ static void mode_straight_line(void)
     }
 }
 
+enum maze_state_t {
+    MAZE_STATE_IDLE,
+    MAZE_STATE_LEG_1,
+    MAZE_STATE_TURNING_1, // 90 right
+    MAZE_STATE_LEG_2,
+    MAZE_STATE_TURNING_2, // 90 right
+    MAZE_STATE_LEG_3,
+    MAZE_STATE_TURNING_3, // 90 right
+    MAZE_STATE_LEG_4,
+    MAZE_STATE_TURNING_4, // U-turn left
+    MAZE_STATE_LEG_5,
+    MAZE_STATE_TURNING_5, // 90 left
+    MAZE_STATE_LEG_6,
+    MAZE_STATE_FINISH,
+};
+
+struct maze_solve_t {
+    enum maze_state_t state;
+    unsigned int start_turn; // time?
+    int motor_left;
+    int motor_right;
+    bool running;
+};
+
+static struct maze_solve_t maze_solve;
+
+static bool maze_state_leg_run(void) {
+    maze_solve.motor_left = 240
+    maze_solve.motor_right = 240;
+    if (motor_read_distance(2) < 20)
+    {
+        maze_solve.motor_left = 0;
+        maze_solve.motor_right = 0;
+        maze_solve.start_turn = 0;
+        return true;
+    }
+    return false;
+}
+
+static bool maze_state_turning_1_run(void) {
+    maze_solve.motor_left = 320;
+    maze_solve.motor_right = 0;
+    if (maze_solve.start_turn++ > 50)
+    {
+        return true;
+    }
+    return false;
+}
+
+static bool maze_state_turning_2_run(void) {
+    maze_solve.motor_left = 320;
+    maze_solve.motor_right = 0;
+    if (maze_solve.start_turn++ > 50)
+    {
+        return true;
+    }
+    return false;
+}
+
+static bool maze_state_turning_3_run(void) {
+    maze_solve.motor_left = 320;
+    maze_solve.motor_right = 0;
+    if (maze_solve.start_turn++ > 50)
+    {
+        return true;
+    }
+    return false;
+}
+
+static bool maze_state_turning_4_run(void) {
+    maze_solve.motor_left = 0;
+    maze_solve.motor_right = 320;
+    if (maze_solve.start_turn++ > 100)
+    {
+        return true;
+    }
+    return false;
+}
+
+static bool maze_state_turning_5_run(void) {
+    maze_solve.motor_left = 320;
+    maze_solve.motor_right = 0;
+    if (maze_solve.start_turn++ > 50)
+    {
+        return true;
+    }
+    return false;
+}
+
+static bool maze_state_idle_run(void) {
+    return maze_solve.running;
+}
+
+/**
+ * Maze solving mode.
+ */
+static void mode_maze_solve(void)
+{
+    if (debounce_button())
+    {
+        return;
+    }
+
+    switch (maze_solve.state)
+    {
+        case MAZE_STATE_IDLE:
+            if (maze_state_idle_run())
+            {
+                maze_solve.state = MAZE_STATE_LEG_1;
+            }
+            break;
+        case MAZE_STATE_LEG_1:
+            if (maze_state_leg_run())
+            {
+                maze_solve.state = MAZE_STATE_TURNING_1;
+            }
+            break;
+        case MAZE_STATE_TURNING_1:
+            if (maze_state_turning_1_run())
+            {
+                maze_solve.state = MAZE_STATE_LEG_2;
+            }
+            break;
+        case MAZE_STATE_LEG_2:
+            if (maze_state_leg_run())
+            {
+                maze_solve.state = MAZE_STATE_TURNING_2;
+            }
+            break;
+        case MAZE_STATE_TURNING_2:
+            if (maze_state_turning_2_run())
+            {
+                maze_solve.state = MAZE_STATE_LEG_3;
+            }
+            break;
+        case MAZE_STATE_LEG_3:
+            if (maze_state_leg_run())
+            {
+                maze_solve.state = MAZE_STATE_TURNING_3;
+            }
+            break;
+        case MAZE_STATE_TURNING_3:
+            if (maze_state_turning_3_run())
+            {
+                maze_solve.state = MAZE_STATE_LEG_4;
+            }
+            break;
+        case MAZE_STATE_LEG_4:
+            if (maze_state_leg_run())
+            {
+                maze_solve.state = MAZE_STATE_TURNING_4;
+            }
+            break;
+        case MAZE_STATE_TURNING_4:
+            if (maze_state_turning_4_run())
+            {
+                maze_solve.state = MAZE_STATE_LEG_5;
+            }
+            break;
+        case MAZE_STATE_LEG_5:
+            if (maze_state_leg_run())
+            {
+                maze_solve.state = MAZE_STATE_TURNING_5;
+            }
+            break;
+        case MAZE_STATE_TURNING_5:
+            if (maze_state_turning_5_run())
+            {
+                maze_solve.state = MAZE_STATE_LEG_6;
+            }
+            break;
+        case MAZE_STATE_LEG_6:
+            if (maze_state_leg_run())
+            {
+                maze_solve.state = MAZE_STATE_FINISH;
+            }
+            break;
+        case MAZE_STATE_FINISH:
+            maze_solve.motor_left = 0;
+            maze_solve.motor_right = 0;
+            break;
+    }
+
+    unsigned int motor_left = maze_solve.motor_left;
+    unsigned int motor_right = maze_solve.motor_right;
+
+    render_text(motor_left, motor_right);
+
+    if (!maze_solve.running)
+    {
+        // Force speed to be zero
+        motor_left = 0;
+        motor_right = 0;
+    }
+
+    motor_control(MOTOR_LEFT, motor_left);
+
+    motor_control(MOTOR_RIGHT, motor_right);
+
+    if (dualshock_read_button(DUALSHOCK_BUTTON_CROSS))
+    {
+        gpio_set_output(LINE_SENSOR_POWER, 0);
+        last_button = DUALSHOCK_BUTTON_CROSS;
+        change_mode(mode_menu);
+    }
+
+    if (dualshock_read_button(DUALSHOCK_BUTTON_TRIANGLE))
+    {
+        lcd_toggle_backlight();
+        last_button = DUALSHOCK_BUTTON_TRIANGLE;
+    }
+
+    if (dualshock_read_button(DUALSHOCK_BUTTON_START))
+    {
+        maze_solve.running = ! maze_solve.running;
+        last_button = DUALSHOCK_BUTTON_START;
+    }
+}
+
 /**
  * Line following mode.
  */
@@ -461,7 +680,10 @@ static bool select_mode(
     }
     else if (p_menu_item == &top_menu_items[2])
     {
-
+        change_mode(mode_maze_solve);
+        maze_solve.motor_left = 0;
+        maze_solve.motor_right = 0;
+        maze_solve.state = MAZE_STATE_IDLE;
     }
     else if (p_menu_item == &top_menu_items[3])
     {
